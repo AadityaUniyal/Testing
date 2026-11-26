@@ -546,8 +546,14 @@ function renderMeetingStudio(meeting) {
     // 4. Render Decisions
     renderDecisionsGrid(meeting.decisions || []);
 
-    // 5. Render Full Transcript
+    // 5. Render Who Spoke What (Speaker Dossier with Attached Audio)
+    renderSpeakerDossier(meeting);
+
+    // 6. Render Full Transcript
     renderTranscriptStream(meeting.transcript || meeting.aligned_transcript || []);
+
+    // 7. Initialize Audio Player Bar
+    setupAudioPlayer(meeting);
 }
 
 function escapeHtml(str) {
@@ -698,12 +704,104 @@ function renderTranscriptStream(transcript) {
         card.innerHTML = `
             <div class="turn-header">
                 <span class="turn-speaker-badge" style="color: #818cf8; cursor: pointer;" onclick="promptRenameSpeaker('${safeName}')" title="Click to rename speaker across the meeting">${safeName} ✏️</span>
-                <span class="turn-timestamp">${ts}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="turn-timestamp">${ts}</span>
+                    <button class="btn-play-excerpt" onclick="playAudioExcerpt(${t.start || 0}, ${t.end || 0})" style="padding: 2px 8px; font-size: 11px;">▶️ Play</button>
+                </div>
             </div>
             <div class="turn-text-body">${escapeHtml(t.text)}</div>
         `;
         container.appendChild(card);
     });
+}
+
+function setupAudioPlayer(meeting) {
+    const audioBar = document.getElementById("studio-audio-player-bar");
+    const audioEl = document.getElementById("meeting-audio-element");
+    if (!audioBar || !audioEl) return;
+
+    audioBar.classList.remove("hidden");
+    audioEl.src = `/api/meetings/${meeting.meeting_id}/audio`;
+    document.getElementById("audio-current-label").textContent = meeting.filename || `Meeting ${meeting.meeting_id}`;
+}
+
+function playAudioExcerpt(startSec, endSec) {
+    const audioEl = document.getElementById("meeting-audio-element");
+    if (!audioEl) return;
+    audioEl.currentTime = startSec;
+    audioEl.play().catch(e => console.warn("Playback prevented:", e));
+    showToast(`Playing audio: ${startSec.toFixed(1)}s - ${endSec.toFixed(1)}s`);
+}
+
+async function renderSpeakerDossier(meeting) {
+    const container = document.getElementById("studio-speakers-dossier");
+    if (!container) return;
+    container.innerHTML = `<div class="empty-feed-hint">Organizing individual speaker statements...</div>`;
+
+    try {
+        const res = await fetch(`/api/meetings/${meeting.meeting_id}/speakers-grouped`);
+        if (!res.ok) throw new Error("Could not retrieve grouped speakers");
+        const data = await res.json();
+        const speakers = data.speakers || [];
+
+        const countBadge = document.getElementById("studio-speakers-count");
+        if (countBadge) countBadge.textContent = speakers.length;
+
+        container.innerHTML = "";
+        if (speakers.length === 0) {
+            container.innerHTML = `<div class="empty-state-box">No speaker dialogue records found.</div>`;
+            return;
+        }
+
+        speakers.forEach((spk, idx) => {
+            const color = getSpeakerColor(idx);
+            const card = document.createElement("div");
+            card.className = "speaker-dossier-card";
+            const safeName = escapeHtml(spk.name);
+
+            let statementsHtml = "";
+            (spk.statements || []).forEach(stmt => {
+                const start = stmt.start || 0;
+                const end = stmt.end || 0;
+                statementsHtml += `
+                    <div class="dossier-statement-item">
+                        <div class="statement-content">
+                            <div class="statement-time">⏱️ ${stmt.timestamp_str} (${(end - start).toFixed(1)}s)</div>
+                            <div class="statement-text">"${escapeHtml(stmt.text)}"</div>
+                        </div>
+                        <button class="btn-play-excerpt" onclick="playAudioExcerpt(${start}, ${end})" title="Play this audio excerpt">
+                            ▶️ Play
+                        </button>
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="dossier-header">
+                    <div class="dossier-speaker-info">
+                        <div class="dossier-avatar" style="background: ${color.bg}; color: ${color.text}; border: 1px solid ${color.border};">
+                            ${safeName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div class="dossier-name" style="color: ${color.text}; cursor: pointer;" onclick="promptRenameSpeaker('${safeName}')" title="Rename speaker">
+                                ${safeName} ✏️
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dossier-stats-pill">
+                        🗣️ ${spk.turn_count} statements · ⏱️ ${spk.formatted_time || spk.total_seconds + 's'} (${spk.percentage}%)
+                    </div>
+                </div>
+                <div class="dossier-statements-list">
+                    ${statementsHtml || '<div class="empty-feed-hint">No statements recorded for this participant.</div>'}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    } catch (e) {
+        console.error("Error loading speaker dossier:", e);
+        container.innerHTML = `<div class="empty-state-box">Could not load speaker breakdown: ${e.message}</div>`;
+    }
 }
 
 function filterTranscriptTurns() {

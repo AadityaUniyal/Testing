@@ -340,7 +340,7 @@
                         </div>
                     </div>
 
-                    <!-- Studio Tabbed Navigation (Minutes | ActionFlow | Decisions | Transcript) -->
+                    <!-- Studio Tabbed Navigation (Minutes | ActionFlow | Decisions | Who Spoke What | Transcript) -->
                     <div class="studio-tabs-bar">
                         <button class="studio-tab-btn active" id="tab-minutes-btn" onclick="switchStudioTab('minutes')">
                             📝 Minutes & Summary
@@ -350,6 +350,9 @@
                         </button>
                         <button class="studio-tab-btn" id="tab-decisions-btn" onclick="switchStudioTab('decisions')">
                             ⚖️ Key Decisions (<span id="studio-decisions-count">0</span>)
+                        </button>
+                        <button class="studio-tab-btn" id="tab-speakers-btn" onclick="switchStudioTab('speakers')">
+                            👥 Who Spoke What (<span id="studio-speakers-count">0</span>)
                         </button>
                         <button class="studio-tab-btn" id="tab-transcript-btn" onclick="switchStudioTab('transcript')">
                             📜 Full Transcript (<span id="studio-turns-count">0</span>)
@@ -395,7 +398,20 @@
                         </div>
                     </div>
 
-                    <!-- Studio Tab 4: Full Timestamped Transcript -->
+                    <!-- Studio Tab 4: Who Spoke What (Speaker Dossier & Segment Audio Playback) -->
+                    <div id="studio-pane-speakers" class="studio-pane">
+                        <div class="transcript-view-header">
+                            <div>
+                                <h3>Participant Dialogue & Audio Playback</h3>
+                                <p class="section-desc">Everything spoken by each individual with one-click audio excerpt playback.</p>
+                            </div>
+                        </div>
+                        <div id="studio-speakers-dossier" class="speakers-dossier-container">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Studio Tab 5: Full Timestamped Transcript -->
                     <div id="studio-pane-transcript" class="studio-pane">
                         <div class="transcript-view-header">
                             <div class="transcript-search-box">
@@ -405,6 +421,15 @@
                         <div id="studio-transcript-stream" class="transcript-stream-container">
                             <!-- Populated dynamically -->
                         </div>
+                    </div>
+
+                    <!-- Floating Audio Player Bar -->
+                    <div id="studio-audio-player-bar" class="studio-audio-bar hidden">
+                        <div class="audio-bar-info">
+                            <span class="audio-now-playing-label">▶️ Audio Player:</span>
+                            <span id="audio-current-label" class="audio-track-name">Meeting Recording</span>
+                        </div>
+                        <audio id="meeting-audio-element" controls preload="none" class="audio-native-controls"></audio>
                     </div>
                 </div>
             </section>

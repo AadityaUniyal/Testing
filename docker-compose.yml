@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  manent-intelligence:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: manent-intelligence:latest
+    container_name: manent-platform
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8081:8081"
+      - "8082:8082"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - LLM_HOST=127.0.0.1
+      - LLM_PORT=8081
+    volumes:
+      - ./models:/app/models
+      - ./audio:/app/audio
+      - ./results:/app/results
+      - ./meeting_intelligence.db:/app/meeting_intelligence.db
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

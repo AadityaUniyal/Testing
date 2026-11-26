@@ -167,21 +167,27 @@ def extract_intelligence(transcript_text: str) -> dict:
 
     prompt = f"""<|im_start|>system
 You are Manent, an expert executive meeting intelligence system.
-Analyze the transcript dialogue to identify speaker names, executive summary, decisions, and action items.
+Analyze the transcript dialogue chronologically to identify speaker names, executive summary, final decisions, and action items.
+
+CHRONOLOGICAL DECISION & TASK OVERRIDE RULES:
+1. People often change their minds, cancel plans, or revise decisions later in a conversation.
+2. Read the entire dialogue from start to finish. If an earlier proposal, commitment, or decision was revised, rejected, modified, or superseded later in the meeting, you MUST ONLY record the FINAL AGREED DECISION and the FINAL AGREED TASK/DEADLINE.
+3. If an initial decision was explicitly revoked or reversed (e.g., "Actually, scratch that, let's not use X, we are going with Y"), record Y as the RESOLVED decision, NOT the cancelled one.
+4. Ensure the summary and ActionFlow always reflect the ultimate authoritative truth of the meeting, not intermediate discarded brainstorming.
 Respond ONLY with valid JSON.
 <|im_end|>
 <|im_start|>user
 TRANSCRIPT:
-{transcript_text[:6500]}
+{transcript_text[:6800]}
 
 Extract in JSON matching this schema:
 {{
   "speaker_mapping": {{"SPEAKER_00": "Name", "SPEAKER_01": "Name"}},
   "topic": "Main meeting topic",
-  "summary": "Executive summary of the discussion",
+  "summary": "Executive summary reflecting final consensus and resolved outcomes",
   "key_topics": ["Topic 1", "Topic 2"],
-  "decisions": [{{"decision": "Consensus point", "status": "RESOLVED", "decided_by": "Name"}}],
-  "action_items": [{{"task": "Action description", "assignee": "Name", "deadline": "Deadline", "evidence": "Quote"}}]
+  "decisions": [{{"decision": "Final consensus point reached (reflecting any late overrides)", "status": "RESOLVED", "decided_by": "Name"}}],
+  "action_items": [{{"task": "Final assigned task description", "assignee": "Name", "deadline": "Final agreed deadline", "evidence": "Final quote"}}]
 }}
 <|im_end|>
 <|im_start|>assistant

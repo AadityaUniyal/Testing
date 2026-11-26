@@ -232,3 +232,94 @@ async def rename_speaker(meeting_id: str, req: RenameSpeakerRequest):
     if not updated:
         raise HTTPException(404, f"Meeting {meeting_id} not found or rename failed")
     return updated
+
+
+@app.get("/api/meetings/{meeting_id}/audio")
+async def get_meeting_audio(meeting_id: str):
+    """Serve audio stream for meeting playback."""
+    # 1. Processed audio
+    proc_path = os.path.join(config.AUDIO_PROCESSED, f"{meeting_id}.wav")
+    if os.path.exists(proc_path):
+        return FileResponse(proc_path, media_type="audio/wav")
+
+    # 2. Input folder files starting with meeting_id
+    if os.path.exists(config.AUDIO_INPUT):
+        for f in os.listdir(config.AUDIO_INPUT):
+            if f.startswith(meeting_id):
+                full_p = os.path.join(config.AUDIO_INPUT, f)
+                ext = os.path.splitext(f)[1].lower()
+                mime = "audio/wav" if ext == ".wav" else "audio/mpeg" if ext == ".mp3" else "audio/mp4"
+                return FileResponse(full_p, media_type=mime)
+
+    # 3. Match by meeting filename
+    meeting = database.get_meeting(meeting_id)
+    if meeting and meeting.get("filename"):
+        cand = os.path.join(config.AUDIO_INPUT, meeting["filename"])
+        if os.path.exists(cand):
+            ext = os.path.splitext(meeting["filename"])[1].lower()
+            mime = "audio/wav" if ext == ".wav" else "audio/mpeg" if ext == ".mp3" else "audio/mp4"
+            return FileResponse(cand, media_type=mime)
+
+    raise HTTPException(404, "Audio file not found for this meeting")
+
+
+@app.get("/api/meetings/{meeting_id}/speakers-grouped")
+async def get_speakers_grouped(meeting_id: str):
+    """
+    Returns segregated transcript grouped by speaker:
+    Each participant with their aggregate speaking metrics and all spoken turns with timestamps.
+    """
+    meeting = database.get_meeting(meeting_id)
+    if not meeting:
+        raise HTTPException(404, "Meeting not found")
+
+    stats = meeting.get("speaker_stats", [])
+    transcript = meeting.get("transcript", [])
+
+    # Group statements
+    grouped_map = {}
+    for seg in transcript:
+        spk = seg.get("speaker_name") or seg.get("speaker") or seg.get("speaker_id") or "Unknown"
+        if spk not in grouped_map:
+            grouped_map[spk] = []
+        grouped_map[spk].append({
+            "start": float(seg.get("start") or 0.0),
+            "end": float(seg.get("end") or 0.0),
+            "timestamp_str": seg.get("timestamp_str") or f"{seg.get('start', 0):.1f}s - {seg.get('end', 0):.1f}s",
+            "text": seg.get("text", "")
+        })
+
+    result = []
+    known_speakers = set()
+    for st in stats:
+        name = st.get("name") or st.get("speaker_name")
+        if name:
+            known_speakers.add(name)
+            result.append({
+                "name": name,
+                "speaker_id": st.get("speaker_id", name),
+                "total_seconds": st.get("total_seconds", 0.0),
+                "formatted_time": st.get("formatted_time", ""),
+                "percentage": st.get("percentage", 0.0),
+                "turn_count": len(grouped_map.get(name, [])),
+                "statements": grouped_map.get(name, [])
+            })
+
+    # Include any remaining speakers found in transcript
+    for spk, stmts in grouped_map.items():
+        if spk not in known_speakers:
+            total_sec = sum(max(0.1, s["end"] - s["start"]) for s in stmts)
+            result.append({
+                "name": spk,
+                "speaker_id": spk,
+                "total_seconds": round(total_sec, 1),
+                "formatted_time": f"{int(total_sec//60):02d}:{int(total_sec%60):02d}",
+                "percentage": 0.0,
+                "turn_count": len(stmts),
+                "statements": stmts
+            })
+
+    return {
+        "meeting_id": meeting_id,
+        "speakers": result
+    }
