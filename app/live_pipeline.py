@@ -46,6 +46,7 @@ class LiveMeetingSession:
         # Auto-activate local model services if not already active
         try:
             model_manager.ensure_llm_server(max_wait_sec=5.0)
+            model_manager.ensure_whisper_server(max_wait_sec=5.0)
         except Exception:
             pass
 
@@ -102,16 +103,38 @@ class LiveMeetingSession:
         await self._check_live_task(speaker_id, text)
 
     async def _transcribe_chunk(self, wav_bytes: bytes) -> str:
-        """Call persistent Whisper server on port 8082."""
+        """Call persistent Whisper server on port 8082 with self-healing and fallback."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=4.0) as client:
                 files = {"file": ("chunk.wav", wav_bytes, "audio/wav")}
                 r = await client.post(WHISPER_SERVER_URL, files=files)
                 if r.status_code == 200:
                     data = r.json()
                     return data.get("text", "")
+        except Exception:
+            # Auto-ensure whisper server if down
+            try:
+                model_manager.ensure_whisper_server(max_wait_sec=1.5)
+            except Exception:
+                pass
+
+        # Fallback to direct whisper-cli if server is still warming up
+        try:
+            import tempfile, subprocess
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
+                tf.write(wav_bytes)
+                temp_wav = tf.name
+            try:
+                cmd = [config.WHISPER_EXE, "-m", config.WHISPER_MODEL, "-f", temp_wav, "-l", "auto", "--no-timestamps"]
+                res = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True, timeout=8.0)
+                if res.returncode == 0:
+                    return res.stdout.strip()
+            finally:
+                if os.path.exists(temp_wav):
+                    os.remove(temp_wav)
         except Exception as e:
-            print(f"[Live] Whisper inference error: {e}")
+            print(f"[Live] Whisper chunk fallback error: {e}")
+
         return ""
 
     def _assign_speaker_simple(self, pcm_bytes: bytes) -> str:
@@ -224,12 +247,17 @@ class LiveMeetingSession:
         if not action_items and self.detected_tasks:
             action_items = [ActionItem(**a) for a in self.detected_tasks]
 
+        # Calculate speaker statistics (talk time, percentage, turns)
+        stats = alignment.calculate_speaker_stats(aligned_segments)
+        resolved_speakers = [s.name for s in stats] if stats else unique_speakers
+
         meeting = MeetingIntelligence(
             meeting_id=self.meeting_id,
             filename=f"Live_Meeting_{self.meeting_id}.wav",
-            duration_seconds=duration,
+            duration_seconds=round(duration, 1),
             processed_at=datetime.now().isoformat(),
-            speakers=unique_speakers,
+            speakers=resolved_speakers,
+            speaker_stats=stats,
             summary=intel.get("summary", ""),
             decisions=[Decision(**d) for d in intel.get("decisions", [])],
             action_items=action_items,
@@ -245,5 +273,12 @@ class LiveMeetingSession:
         res_path = os.path.join(config.RESULTS_DIR, f"{self.meeting_id}.json")
         with open(res_path, "w", encoding="utf-8") as f:
             json.dump(meeting.model_dump(), f, indent=2, ensure_ascii=False)
+
+        # Synchronize to Supabase Cloud
+        try:
+            from app import supabase_client
+            supabase_client.sync_meeting(meeting)
+        except Exception as e:
+            print(f"[Live] Supabase sync warning: {e}")
 
         return meeting

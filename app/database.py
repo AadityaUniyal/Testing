@@ -122,3 +122,106 @@ def _row_to_dict(row) -> dict:
             except json.JSONDecodeError:
                 pass
     return d
+
+
+def rename_speaker(meeting_id: str, old_name: str, new_name: str) -> dict | None:
+    """
+    Rename a speaker across all intelligence fields:
+    - speakers list
+    - speaker_stats list
+    - transcript turns
+    - action_items assignees
+    - decisions decided_by
+    Persists updates to local SQLite, JSON artifacts, and cloud Supabase.
+    """
+    meeting = get_meeting(meeting_id)
+    if not meeting:
+        return None
+
+    old_clean = old_name.strip()
+    new_clean = new_name.strip()
+    if not old_clean or not new_clean or old_clean == new_clean:
+        return meeting
+
+    # 1. Update speakers list
+    speakers = meeting.get("speakers", [])
+    updated_speakers = []
+    for s in speakers:
+        if s == old_clean:
+            updated_speakers.append(new_clean)
+        else:
+            updated_speakers.append(s)
+    meeting["speakers"] = updated_speakers
+
+    # 2. Update speaker_stats
+    stats = meeting.get("speaker_stats", [])
+    for st in stats:
+        if isinstance(st, dict):
+            if st.get("name") == old_clean or st.get("speaker_name") == old_clean or st.get("speaker_id") == old_clean:
+                st["name"] = new_clean
+                st["speaker_name"] = new_clean
+    meeting["speaker_stats"] = stats
+
+    # 3. Update transcript
+    transcript = meeting.get("transcript", [])
+    for turn in transcript:
+        if isinstance(turn, dict):
+            if turn.get("speaker") == old_clean or turn.get("speaker_name") == old_clean or turn.get("speaker_id") == old_clean:
+                turn["speaker"] = new_clean
+                turn["speaker_name"] = new_clean
+    meeting["transcript"] = transcript
+
+    # 4. Update action items
+    actions = meeting.get("action_items", [])
+    for a in actions:
+        if isinstance(a, dict) and a.get("assignee") == old_clean:
+            a["assignee"] = new_clean
+    meeting["action_items"] = actions
+
+    # 5. Update decisions
+    decisions = meeting.get("decisions", [])
+    for d in decisions:
+        if isinstance(d, dict) and (d.get("decided_by") == old_clean or d.get("speaker_id") == old_clean):
+            d["decided_by"] = new_clean
+    meeting["decisions"] = decisions
+
+    # Save to SQLite
+    conn = _get_conn()
+    conn.execute("""
+        UPDATE meetings
+        SET speakers = ?,
+            speaker_stats = ?,
+            transcript = ?,
+            action_items = ?,
+            decisions = ?
+        WHERE meeting_id = ?
+    """, (
+        json.dumps(meeting["speakers"]),
+        json.dumps(meeting["speaker_stats"]),
+        json.dumps(meeting["transcript"]),
+        json.dumps(meeting["action_items"]),
+        json.dumps(meeting["decisions"]),
+        meeting_id
+    ))
+    conn.commit()
+    conn.close()
+
+    # Update local results JSON file if present
+    from app.config import RESULTS_DIR
+    res_path = os.path.join(RESULTS_DIR, f"{meeting_id}.json")
+    if os.path.exists(res_path):
+        try:
+            with open(res_path, "w", encoding="utf-8") as f:
+                json.dump(meeting, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # Synchronize rename with Supabase
+    try:
+        from app import supabase_client
+        supabase_client.rename_speaker_in_supabase(meeting_id, old_clean, new_clean)
+        supabase_client.sync_meeting(meeting)
+    except Exception as e:
+        print(f"[DB] Supabase speaker rename sync warning: {e}")
+
+    return meeting

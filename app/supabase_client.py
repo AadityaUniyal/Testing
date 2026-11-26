@@ -12,6 +12,7 @@ import logging
 from typing import Optional, Dict, Any, Union
 import urllib.request
 import urllib.error
+import urllib.parse
 
 # Load .env if present
 try:
@@ -65,6 +66,28 @@ def _post_rest(table: str, data: list, on_conflict: Optional[str] = None) -> boo
             return response.status in (200, 201, 204)
     except Exception as e:
         logger.warning(f"Supabase sync failed for table '{table}': {e}")
+        return False
+
+def _patch_rest(table: str, query_params: str, data: dict) -> bool:
+    """Send a PATCH update to Supabase PostgREST endpoint with query filters."""
+    if not is_supabase_configured():
+        return False
+    
+    url = f"{SUPABASE_URL}/rest/v1/{table}?{query_params}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    }
+
+    try:
+        body = json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(url, data=body, headers=headers, method="PATCH")
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return response.status in (200, 204)
+    except Exception as e:
+        logger.warning(f"Supabase PATCH failed for table '{table}': {e}")
         return False
 
 def sync_meeting(meeting: Union[Dict[str, Any], Any]) -> bool:
@@ -199,4 +222,33 @@ def sync_meeting_to_supabase(meeting_dict: Dict[str, Any]) -> bool:
         _post_rest("decisions", decisions_data)
 
     logger.info(f"Successfully synced meeting {meeting_id} to Supabase cloud.")
+    return True
+
+def rename_speaker_in_supabase(meeting_id: str, old_name: str, new_name: str) -> bool:
+    """
+    Update speaker name across all relational tables in Supabase:
+    - speakers: display_name
+    - transcript_segments: speaker_name
+    - action_items: assignee
+    - decisions: decided_by
+    """
+    if not is_supabase_configured():
+        return False
+
+    old_q = urllib.parse.quote(old_name)
+    # 1. Update speakers table
+    _patch_rest("speakers", f"meeting_id=eq.{meeting_id}&display_name=eq.{old_q}", {"display_name": new_name})
+    _patch_rest("speakers", f"meeting_id=eq.{meeting_id}&speaker_id=eq.{old_q}", {"display_name": new_name})
+
+    # 2. Update transcript_segments table
+    _patch_rest("transcript_segments", f"meeting_id=eq.{meeting_id}&speaker_name=eq.{old_q}", {"speaker_name": new_name})
+    _patch_rest("transcript_segments", f"meeting_id=eq.{meeting_id}&speaker_id=eq.{old_q}", {"speaker_name": new_name})
+
+    # 3. Update action_items
+    _patch_rest("action_items", f"meeting_id=eq.{meeting_id}&assignee=eq.{old_q}", {"assignee": new_name})
+
+    # 4. Update decisions
+    _patch_rest("decisions", f"meeting_id=eq.{meeting_id}&decided_by=eq.{old_q}", {"decided_by": new_name})
+
+    logger.info(f"Renamed speaker '{old_name}' to '{new_name}' in Supabase for meeting {meeting_id}.")
     return True

@@ -550,6 +550,53 @@ function renderMeetingStudio(meeting) {
     renderTranscriptStream(meeting.transcript || meeting.aligned_transcript || []);
 }
 
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function showToast(msg) {
+    let toast = document.getElementById("manent-toast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "manent-toast";
+        toast.className = "manent-toast";
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 3200);
+}
+
+async function promptRenameSpeaker(oldName) {
+    if (!currentMeeting) return;
+    const newName = prompt(`Enter new name for speaker "${oldName}":`, oldName);
+    if (!newName || newName.trim() === "" || newName.trim() === oldName) return;
+
+    try {
+        const res = await fetch(`/api/meetings/${currentMeeting.meeting_id}/speakers/rename`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ old_name: oldName, new_name: newName.trim() })
+        });
+        if (!res.ok) throw new Error("Server rejected rename request");
+        const updated = await res.json();
+        currentMeeting = updated;
+        renderMeetingStudio(currentMeeting);
+        loadMeetings();
+        showToast(`Speaker renamed: "${oldName}" ➔ "${newName.trim()}"`);
+    } catch (e) {
+        alert("Error renaming speaker: " + e.message);
+    }
+}
+
 function renderSpeakerAnalytics(stats) {
     const container = document.getElementById("speaker-bars-container");
     container.innerHTML = "";
@@ -563,9 +610,13 @@ function renderSpeakerAnalytics(stats) {
         const color = getSpeakerColor(idx);
         const card = document.createElement("div");
         card.className = "speaker-bar-card";
+        const safeName = escapeHtml(s.name);
         card.innerHTML = `
             <div class="spk-bar-header">
-                <span class="spk-bar-name" style="color: ${color.text}">${s.name}</span>
+                <div class="spk-name-group">
+                    <span class="spk-bar-name" style="color: ${color.text}">${safeName}</span>
+                    <button class="spk-rename-btn" onclick="promptRenameSpeaker('${safeName}')" title="Rename speaker in minutes and transcript">✏️</button>
+                </div>
                 <span class="spk-bar-time">${s.formatted_time || s.total_seconds + 's'}</span>
             </div>
             <div class="progress-track">
@@ -642,13 +693,14 @@ function renderTranscriptStream(transcript) {
         card.className = "transcript-turn-card";
         const spkName = t.speaker_name || t.speaker || t.speaker_id || "Speaker";
         const ts = t.timestamp_str || `${t.start?.toFixed(1) || 0}s - ${t.end?.toFixed(1) || 0}s`;
+        const safeName = escapeHtml(spkName);
 
         card.innerHTML = `
             <div class="turn-header">
-                <span class="turn-speaker-badge" style="color: #818cf8;">${spkName}</span>
+                <span class="turn-speaker-badge" style="color: #818cf8; cursor: pointer;" onclick="promptRenameSpeaker('${safeName}')" title="Click to rename speaker across the meeting">${safeName} ✏️</span>
                 <span class="turn-timestamp">${ts}</span>
             </div>
-            <div class="turn-text-body">${t.text}</div>
+            <div class="turn-text-body">${escapeHtml(t.text)}</div>
         `;
         container.appendChild(card);
     });

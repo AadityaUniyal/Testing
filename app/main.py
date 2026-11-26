@@ -12,6 +12,7 @@ from datetime import datetime
 from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
 
 from app import config, database, model_manager
 from app.pipeline import run_pipeline
@@ -201,3 +202,19 @@ async def get_meeting(meeting_id: str):
     if result is None:
         raise HTTPException(404, "Meeting not found")
     return result
+
+
+class RenameSpeakerRequest(BaseModel):
+    old_name: str
+    new_name: str
+
+
+@app.post("/api/meetings/{meeting_id}/speakers/rename")
+async def rename_speaker(meeting_id: str, req: RenameSpeakerRequest):
+    """
+    Rename a speaker across minutes, transcripts, speaker stats, action items, and Supabase.
+    """
+    updated = database.rename_speaker(meeting_id, req.old_name.strip(), req.new_name.strip())
+    if not updated:
+        raise HTTPException(404, f"Meeting {meeting_id} not found or rename failed")
+    return updated
