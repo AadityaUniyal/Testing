@@ -15,7 +15,7 @@ import time
 import uuid
 from datetime import datetime
 
-from app import config, database, alignment, diarization_engine, llm_engine, whisper_engine, audio_utils, model_manager
+from app import config, database, alignment, diarization_engine, llm_engine, whisper_engine, audio_utils, model_manager, vad_engine
 from app.models import (
     MeetingIntelligence, PipelineStatus,
     TranscriptSegment, SpeakerSegment, AlignedSegment,
@@ -170,33 +170,68 @@ async def run_pipeline(
             aligned_transcript=aligned,
         )
 
-        # 1. Local SQLite storage (100% offline guarantee)
+        total_time = whisper_time + diarize_time + llm_time
+
+        # Compute VAD speech-to-silence ratio & noise profile
+        vad_profile = vad_engine.profile_audio_speech(audio_path)
+        word_count = sum(len(s.text.split()) for s in aligned)
+        turn_count = len(aligned)
+        realtime_factor = round(total_time / max(0.1, duration), 3)
+
+        telemetry = {
+            "meeting_id": mid,
+            "audio_duration_seconds": round(duration, 2),
+            "whisper_latency_seconds": round(whisper_time, 2),
+            "diarization_latency_seconds": round(diarize_time, 2),
+            "llm_latency_seconds": round(llm_time, 2),
+            "total_latency_seconds": round(total_time, 2),
+            "realtime_factor": realtime_factor,
+            "speech_ratio": vad_profile.get("speech_ratio", 0.0),
+            "silence_percentage": vad_profile.get("silence_percentage", 0.0),
+            "word_count": word_count,
+            "turn_count": turn_count,
+            "speaker_count": len(final_speakers),
+            "task_count": len(action_items_list),
+            "decision_count": len(decisions_list),
+            "device_profile": "hybrid_edge_ios",
+            "model_versions": {
+                "whisper": "large-v3-turbo-cuda",
+                "diarization": "pyannote-community-1",
+                "llm": "qwen2.5-0.8b-instruct-q4",
+                "vad": "silero-vad-v5-onnx"
+            },
+            "created_at": datetime.now().isoformat()
+        }
+
+        # 1. Local SQLite storage with full execution telemetry
         database.save_meeting(
             result,
             raw_whisper=json.dumps([s.model_dump() for s in transcript_segments]),
             raw_diarize=json.dumps([s.model_dump() for s in speaker_segments]),
             raw_llm=json.dumps(intelligence),
+            telemetry=telemetry
         )
 
         # 2. Local JSON artifact
+        result_dict = result.model_dump()
+        result_dict["telemetry"] = telemetry
         result_path = os.path.join(config.RESULTS_DIR, f"{mid}.json")
         with open(result_path, "w", encoding="utf-8") as f:
-            json.dump(result.model_dump(), f, indent=2, ensure_ascii=False)
+            json.dump(result_dict, f, indent=2, ensure_ascii=False)
 
-        # 3. Optional Supabase Cloud Sync (if configured)
+        # 3. Optional Supabase Cloud Sync (including telemetry)
         try:
             from app import supabase_client
             if supabase_client.is_configured():
                 import inspect
-                sync_res = supabase_client.sync_meeting(result)
+                sync_res = supabase_client.sync_meeting(result_dict)
                 if inspect.isawaitable(sync_res):
                     await sync_res
         except Exception as e:
             print(f"[Supabase Sync Notice] {e}")
 
-        total_time = whisper_time + diarize_time + llm_time
         await _status("complete", 1.0,
-                       f"Processing complete in {total_time:.1f}s! Discovered {len(final_speakers)} speakers and {len(action_items_list)} tasks.")
+                       f"Processing complete in {total_time:.1f}s ({realtime_factor}x real-time)! Discovered {len(final_speakers)} speakers, {len(action_items_list)} tasks, {vad_profile.get('speech_ratio', 0.0)*100:.0f}% speech.")
 
         return result
 

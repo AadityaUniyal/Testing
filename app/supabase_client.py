@@ -132,7 +132,8 @@ def sync_meeting_to_supabase(meeting_dict: Dict[str, Any]) -> bool:
         "key_topics": meeting_dict.get("key_topics", []),
         "unresolved_issues": meeting_dict.get("unresolved_issues", []),
         "important_points": meeting_dict.get("important_points", []),
-        "raw_response": meeting_dict
+        "raw_response": meeting_dict,
+        "telemetry": meeting_dict.get("telemetry", {})
     }]
     _post_rest("meetings", meeting_row, on_conflict="meeting_id")
 
@@ -220,6 +221,29 @@ def sync_meeting_to_supabase(meeting_dict: Dict[str, Any]) -> bool:
         })
     if decisions_data:
         _post_rest("decisions", decisions_data)
+
+    # 6. Sync Execution Telemetry
+    telemetry = meeting_dict.get("telemetry")
+    if telemetry and isinstance(telemetry, dict):
+        telem_row = [{
+            "meeting_id": meeting_id,
+            "audio_duration_seconds": float(telemetry.get("audio_duration_seconds", 0.0)),
+            "whisper_latency_seconds": float(telemetry.get("whisper_latency_seconds", 0.0)),
+            "diarization_latency_seconds": float(telemetry.get("diarization_latency_seconds", 0.0)),
+            "llm_latency_seconds": float(telemetry.get("llm_latency_seconds", 0.0)),
+            "total_latency_seconds": float(telemetry.get("total_latency_seconds", 0.0)),
+            "realtime_factor": float(telemetry.get("realtime_factor", 0.0)),
+            "speech_ratio": float(telemetry.get("speech_ratio", 0.0)),
+            "silence_percentage": float(telemetry.get("silence_percentage", 0.0)),
+            "word_count": int(telemetry.get("word_count", 0)),
+            "turn_count": int(telemetry.get("turn_count", 0)),
+            "speaker_count": int(telemetry.get("speaker_count", 0)),
+            "task_count": int(telemetry.get("task_count", 0)),
+            "decision_count": int(telemetry.get("decision_count", 0)),
+            "device_profile": str(telemetry.get("device_profile", "hybrid_edge_ios")),
+            "model_versions": telemetry.get("model_versions", {})
+        }]
+        _post_rest("execution_telemetry", telem_row)
 
     logger.info(f"Successfully synced meeting {meeting_id} to Supabase cloud.")
     return True

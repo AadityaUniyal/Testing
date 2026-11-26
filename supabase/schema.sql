@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS public.meetings (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     summary TEXT,
-    raw_response JSONB
+    raw_response JSONB,
+    telemetry JSONB DEFAULT '{}'::jsonb
 );
 
 -- Index for quick lookups by meeting_id and created_at
@@ -74,7 +75,41 @@ CREATE TABLE IF NOT EXISTS public.decisions (
 
 CREATE INDEX IF NOT EXISTS idx_decisions_meeting_id ON public.decisions(meeting_id);
 
--- Row Level Security (RLS) Configuration
+-- 6. Execution Telemetry Table
+CREATE TABLE IF NOT EXISTS public.execution_telemetry (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    meeting_id VARCHAR(64) REFERENCES public.meetings(meeting_id) ON DELETE CASCADE,
+    audio_duration_seconds FLOAT DEFAULT 0.0,
+    whisper_latency_seconds FLOAT DEFAULT 0.0,
+    diarization_latency_seconds FLOAT DEFAULT 0.0,
+    llm_latency_seconds FLOAT DEFAULT 0.0,
+    total_latency_seconds FLOAT DEFAULT 0.0,
+    realtime_factor FLOAT DEFAULT 0.0,
+    speech_ratio FLOAT DEFAULT 0.0,
+    silence_percentage FLOAT DEFAULT 0.0,
+    word_count INTEGER DEFAULT 0,
+    turn_count INTEGER DEFAULT 0,
+    speaker_count INTEGER DEFAULT 0,
+    task_count INTEGER DEFAULT 0,
+    decision_count INTEGER DEFAULT 0,
+    device_profile TEXT DEFAULT 'hybrid_edge_ios',
+    model_versions JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telemetry_meeting_id ON public.execution_telemetry(meeting_id);
+ALTER TABLE public.execution_telemetry ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'execution_telemetry' AND policyname = 'Allow all access to execution_telemetry'
+    ) THEN
+        CREATE POLICY "Allow all access to execution_telemetry" ON public.execution_telemetry FOR ALL USING (true) WITH CHECK (true);
+    END IF;
+END
+$$;
+
 ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.speakers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transcript_segments ENABLE ROW LEVEL SECURITY;

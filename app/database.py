@@ -4,6 +4,7 @@ Database — SQLite storage for Manent meeting intelligence results.
 import json
 import os
 import sqlite3
+from datetime import datetime
 from app.config import DB_PATH
 from app.models import MeetingIntelligence
 
@@ -34,7 +35,30 @@ def init_db():
             transcript    TEXT DEFAULT '[]',
             raw_whisper   TEXT DEFAULT '',
             raw_diarize   TEXT DEFAULT '',
-            raw_llm       TEXT DEFAULT ''
+            raw_llm       TEXT DEFAULT '',
+            telemetry     TEXT DEFAULT '{}'
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS execution_telemetry (
+            id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+            meeting_id                  TEXT NOT NULL,
+            audio_duration_seconds      REAL DEFAULT 0,
+            whisper_latency_seconds     REAL DEFAULT 0,
+            diarization_latency_seconds REAL DEFAULT 0,
+            llm_latency_seconds         REAL DEFAULT 0,
+            total_latency_seconds       REAL DEFAULT 0,
+            realtime_factor             REAL DEFAULT 0,
+            speech_ratio                REAL DEFAULT 0,
+            silence_percentage          REAL DEFAULT 0,
+            word_count                  INTEGER DEFAULT 0,
+            turn_count                  INTEGER DEFAULT 0,
+            speaker_count               INTEGER DEFAULT 0,
+            task_count                  INTEGER DEFAULT 0,
+            decision_count              INTEGER DEFAULT 0,
+            device_profile              TEXT DEFAULT 'hybrid_edge_ios',
+            model_versions              TEXT DEFAULT '{}',
+            created_at                  TEXT
         )
     """)
     conn.commit()
@@ -48,6 +72,8 @@ def init_db():
         cursor.execute("ALTER TABLE meetings ADD COLUMN speaker_stats TEXT DEFAULT '[]'")
     if "key_topics" not in existing_cols:
         cursor.execute("ALTER TABLE meetings ADD COLUMN key_topics TEXT DEFAULT '[]'")
+    if "telemetry" not in existing_cols:
+        cursor.execute("ALTER TABLE meetings ADD COLUMN telemetry TEXT DEFAULT '{}'")
     conn.commit()
     conn.close()
 
@@ -59,16 +85,16 @@ except Exception as e:
     print(f"[DB] Init warning: {e}")
 
 
-def save_meeting(meeting: MeetingIntelligence, raw_whisper="", raw_diarize="", raw_llm=""):
-    """Save or update a meeting result."""
+def save_meeting(meeting: MeetingIntelligence, raw_whisper="", raw_diarize="", raw_llm="", telemetry=None):
+    """Save or update a meeting result, including execution telemetry."""
     init_db()
     conn = _get_conn()
     conn.execute("""
         INSERT OR REPLACE INTO meetings
         (meeting_id, filename, duration_sec, processed_at, speakers, speaker_stats,
          summary, key_topics, decisions, action_items, unresolved, important, transcript,
-         raw_whisper, raw_diarize, raw_llm)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         raw_whisper, raw_diarize, raw_llm, telemetry)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         meeting.meeting_id,
         meeting.filename,
@@ -86,9 +112,64 @@ def save_meeting(meeting: MeetingIntelligence, raw_whisper="", raw_diarize="", r
         raw_whisper,
         raw_diarize,
         raw_llm,
+        json.dumps(telemetry or {}),
     ))
     conn.commit()
     conn.close()
+
+    if telemetry:
+        save_telemetry(telemetry)
+
+
+def save_telemetry(telemetry_data: dict):
+    """Save performance and execution telemetry."""
+    init_db()
+    conn = _get_conn()
+    conn.execute("""
+        INSERT INTO execution_telemetry
+        (meeting_id, audio_duration_seconds, whisper_latency_seconds,
+         diarization_latency_seconds, llm_latency_seconds, total_latency_seconds,
+         realtime_factor, speech_ratio, silence_percentage, word_count,
+         turn_count, speaker_count, task_count, decision_count,
+         device_profile, model_versions, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        telemetry_data.get("meeting_id", ""),
+        float(telemetry_data.get("audio_duration_seconds", 0.0)),
+        float(telemetry_data.get("whisper_latency_seconds", 0.0)),
+        float(telemetry_data.get("diarization_latency_seconds", 0.0)),
+        float(telemetry_data.get("llm_latency_seconds", 0.0)),
+        float(telemetry_data.get("total_latency_seconds", 0.0)),
+        float(telemetry_data.get("realtime_factor", 0.0)),
+        float(telemetry_data.get("speech_ratio", 0.0)),
+        float(telemetry_data.get("silence_percentage", 0.0)),
+        int(telemetry_data.get("word_count", 0)),
+        int(telemetry_data.get("turn_count", 0)),
+        int(telemetry_data.get("speaker_count", 0)),
+        int(telemetry_data.get("task_count", 0)),
+        int(telemetry_data.get("decision_count", 0)),
+        str(telemetry_data.get("device_profile", "hybrid_edge_ios")),
+        json.dumps(telemetry_data.get("model_versions", {})),
+        telemetry_data.get("created_at") or datetime.now().isoformat()
+    ))
+    conn.commit()
+    conn.close()
+
+
+def get_telemetry(meeting_id: str) -> dict | None:
+    """Retrieve execution telemetry for a meeting."""
+    conn = _get_conn()
+    row = conn.execute("SELECT * FROM execution_telemetry WHERE meeting_id = ? ORDER BY id DESC LIMIT 1", (meeting_id,)).fetchone()
+    conn.close()
+    if row is None:
+        return None
+    d = dict(row)
+    if "model_versions" in d and isinstance(d["model_versions"], str):
+        try:
+            d["model_versions"] = json.loads(d["model_versions"])
+        except Exception:
+            pass
+    return d
 
 
 def get_meeting(meeting_id: str) -> dict | None:
@@ -115,7 +196,7 @@ def list_meetings() -> list[dict]:
 
 def _row_to_dict(row) -> dict:
     d = dict(row)
-    for key in ["speakers", "speaker_stats", "key_topics", "decisions", "action_items", "unresolved", "important", "transcript"]:
+    for key in ["speakers", "speaker_stats", "key_topics", "decisions", "action_items", "unresolved", "important", "transcript", "telemetry"]:
         if key in d and isinstance(d[key], str):
             try:
                 d[key] = json.loads(d[key])

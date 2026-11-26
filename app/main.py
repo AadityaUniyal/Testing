@@ -204,6 +204,20 @@ async def get_meeting(meeting_id: str):
     return result
 
 
+@app.get("/api/meetings/{meeting_id}/telemetry")
+async def get_meeting_telemetry(meeting_id: str):
+    """
+    Retrieve performance telemetry (VAD speech ratio, Whisper latency, realtime factor, model versions).
+    """
+    telem = database.get_telemetry(meeting_id)
+    if not telem:
+        meeting = database.get_meeting(meeting_id)
+        if meeting and "telemetry" in meeting:
+            return meeting["telemetry"]
+        raise HTTPException(404, "Telemetry not found for meeting")
+    return telem
+
+
 class RenameSpeakerRequest(BaseModel):
     old_name: str
     new_name: str
