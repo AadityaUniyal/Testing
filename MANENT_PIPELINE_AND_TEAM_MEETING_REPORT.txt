@@ -1,0 +1,104 @@
+================================================================================
+                 MANENT AI INTELLIGENCE PIPELINE REPORT
+           Offline Multi-Model Meeting Diarization & Analytics
+================================================================================
+Generated: 2026-11-26 21:27:20
+Meeting ID: user_meeting_1795707359
+Source Audio: user_team_meeting_manent.m4a (Apple M4A / 16kHz PCM mono)
+Duration: 200.0 seconds (3.33 minutes)
+Identified Speakers: Aditya, Pavan, Garima, Vanna, Vaishnavi
+Supabase Cloud Record: 440fd00a-4262-43b3-b488-82995f16e5cb
+--------------------------------------------------------------------------------
+
+1. LOCAL OFFLINE AI MODELS & SPECIFICATIONS
+================================================================================
+  Stage 1: Silero VAD v5 (ONNX Runtime)
+    • Footprint: 2.1 MB | Latency: < 0.5 ms per 32ms chunk
+    • Purpose: Drops non-speech silence; cuts 35-40% compute; prevents iPhone overheating.
+    • Noise Filter: 80Hz Butterworth High-Pass for desk vibrations & rumble.
+
+  Stage 2: Whisper Large-v3 Turbo (CUDA GPU)
+    • Footprint: 1.51 GB (809M params) | Engine: whisper.cpp with CUDA
+    • Performance: 25.9s for 200s audio (~8x faster than real-time).
+    • Purpose: Zero-hallucination punctuation, capitalization & millisecond timestamps.
+
+  Stage 3: Pyannote Community-1 (Neural Diarization)
+    • Footprint: ~33 MB total (PyanNet SincNet BiLSTM 5.9MB + ResNet34 Embedding 26.6MB)
+    • Purpose: Voiceprint extraction & Agglomerative Hierarchical Clustering (AHC).
+    • Detected: 5 distinct speakers across 37 neural segments.
+
+  Stage 4: Qwen 2.5 0.8B Instruct (GGUF Q4_K_M)
+    • Footprint: 516 MB | Engine: llama.cpp server on port 8081 | Latency: 5.4s
+    • Purpose: Contextual summary, dynamic speaker renaming, chronological decision overrides,
+               and ActionFlow task allocations with verbatim evidence quotes.
+  Total AI Footprint: ~2.06 GB (100% free, runs offline, zero external cloud APIs).
+--------------------------------------------------------------------------------
+
+2. EXECUTIVE SUMMARY
+================================================================================
+The team is currently focused on the Pigma project, specifically addressing the user segment and technical architecture. Aditya and Vaishnavi are working on Figma for UI, while Garima and Pavan are conducting research on the user segment and technical architecture. The final consensus is that Aditya should focus on UI/UX design and competitor analysis, while Garima should focus on narrowing the user segment and conducting formal meetings. The decision to use Swift UI for organic growth is agreed upon. All participants have been assigned tasks to complete their respective research and deliverables by the end of the meeting.
+--------------------------------------------------------------------------------
+
+3. PARTICIPANT TALK-TIME & DIARIZATION METRICS
+================================================================================
+PARTICIPANT          | TALK TIME    | PERCENTAGE   | TURNS SPOKEN
+-----------------------------------------------------------------
+Aditya               | 1m 51s       |  55.8%      |     18 turns
+Pavan                | 33s          |  16.9%      |      5 turns
+Garima               | 26s          |  13.0%      |      3 turns
+Vanna                | 17s          |   8.8%      |      2 turns
+Vaishnavi            | 11s          |   5.5%      |      2 turns
+--------------------------------------------------------------------------------
+
+4. KEY DECISIONS (CHRONOLOGICAL CONSENSUS)
+================================================================================
+  • [RESOLVED] Final consensus point reached (reflecting any late overrides)
+    Decided by: Aditya
+--------------------------------------------------------------------------------
+
+5. ACTION ITEMS / ASSIGNED TASKS (ACTIONFLOW)
+================================================================================
+  • Task: Aditya to focus on UI/UX design and competitor analysis for the user segment
+    Assignee: Aditya | Deadline: End of meeting
+    Verbatim Evidence: "SPEAKER_02: 'once uh she brings in the data vaishnavi brings it' - 'aditya you can continue focusing more on uh the models right which is more suitable and accurate'"
+
+  • Task: Garima to narrow user segment and conduct formal meetings
+    Assignee: Garima | Deadline: End of meeting
+    Verbatim Evidence: "SPEAKER_02: 'at the same time you can take both the nuances of a formal meeting where one person addresses mostly and creates minutes of the meetings and another of a cross-functional team'"
+
+--------------------------------------------------------------------------------
+
+6. COMPLETE TIMESTAMPED TRANSCRIPT ('WHO SPOKE WHAT')
+================================================================================
+[00:00 - 00:05] Aditya: yes okay so you guys have been working on the project and i hope all four of you are contributing
+[00:05 - 00:11] Aditya: to it can i get a quick idea about who is doing what so that i can give further action yeah so
+[00:11 - 00:18] Pavan: talking about me i'm working on the poc part i have been trying the technical architecture how
+[00:18 - 00:26] Pavan: which models to use how to use and should we enhance or the in on like recording audio or
+[00:26 - 00:31] Pavan: during the recording should we do the processing part or should we do all the things later on
+[00:31 - 00:38] Pavan: this is i'm what i'm trying to and i'm trying to improve the accuracy of this application okay
+[00:38 - 00:47] Garima: and how about you i have been seeing the workflow reiterating in and also doing the research that
+[00:47 - 00:55] Garima: which combination of models would be the best fit for our project also i have been looking on the
+[00:55 - 01:04] Garima: sigma side and doing continuous checks with pavan in the backhand side how about you vanna
+[01:04 - 01:13] Vanna: sir i'm majorly looking for the user segment i'm trying to narrow it down and i'm researching more
+[01:13 - 01:21] Vanna: on the main problem segment right now researching on on the problem segment right yes so vanna is doing
+[01:21 - 01:28] Aditya: research okay garima sorry garima garima garima is doing research and then we have uh with us
+[01:28 - 01:33] Vaishnavi: vaishnavi vaishnavi what is i'm working on pigma majorly checking all the workflows and everything and
+[01:33 - 01:39] Vaishnavi: all ui thing basically searching for every uh ui possible to integrate or making it more better
+[01:39 - 01:44] Aditya: also look for some good designs and see your competitors because ui plays a very significant
+[01:44 - 01:54] Aditya: so so so given this we understand that uh uh aditya and uh vaishnavi are uh in a way working on figma in
+[01:54 - 02:00] Aditya: the ui part however i would recommend that vaishnavi uh goes further on the user flow and looks for some
+[02:00 - 02:07] Aditya: good designs uh of competitor apps uh aditya you can continue focusing more on uh the models right which
+[02:07 - 02:14] Aditya: is more suitable and accurate and at the same time uh once uh she brings in the data vaishnavi brings it
+[02:14 - 02:21] Aditya: let's sit with the ui team and work on it further and uh garima you continue your research and narrow
+[02:21 - 02:28] Aditya: down your user segment and make sure you look for user segment that very closely uh requires the need of
+[02:28 - 02:35] Aditya: physical meetings right and at the same time you can take both the nuances of a formal meeting where
+[02:35 - 02:40] Aditya: one person addresses mostly and creates minutes of the meetings and another of a cross-functional team
+[02:40 - 02:45] Aditya: like students working on projects where there's more of more of cross interaction to see the accuracy of
+[02:45 - 02:52] Aditya: the app and pavan you continue with poc right uh try to see how can we bring in all these features
+[02:52 - 02:58] Aditya: that i'm talking about into the app so that we can see that you know it is it is well planned and
+[02:58 - 03:03] Aditya: implementable in future right okay so that'll reduce the development curve here and then we can
+[03:03 - 03:08] Aditya: organically grow it using swift ui so look at the tech aspect of it okay so i think uh we all know
+[03:08 - 03:12] Aditya: what is the action to be taken by each one of you and we'll resume the next meeting tomorrow
+[03:12 - 03:20] Pavan: at 11 a.m all right so i think let's call it a day
+--------------------------------------------------------------------------------
+END OF MANENT INTELLIGENCE REPORT

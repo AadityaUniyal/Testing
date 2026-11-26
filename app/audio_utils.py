@@ -20,10 +20,27 @@ def load_and_normalize_audio(input_path: str, target_sr: int = 16000) -> tuple[n
         raise FileNotFoundError(f"Audio file does not exist: {input_path}")
 
     # Read audio using soundfile (supports WAV, MP3, FLAC, OGG, etc.)
+    # Fallback to PyAV for M4A, AAC, MP4, WEBM formats
     try:
         data, sr = sf.read(input_path, dtype='float32')
-    except Exception as e:
-        raise RuntimeError(f"Failed to read audio file '{input_path}': {e}")
+    except Exception as sf_err:
+        try:
+            import av
+            container = av.open(input_path)
+            resampler = av.AudioResampler(format='fltp', layout='mono', rate=target_sr)
+            frames = []
+            for frame in container.decode(audio=0):
+                for r in resampler.resample(frame):
+                    frames.append(r.to_ndarray())
+            for r in resampler.resample(None):
+                frames.append(r.to_ndarray())
+            if frames:
+                data = np.concatenate(frames, axis=1).squeeze(0)
+                sr = target_sr
+            else:
+                raise RuntimeError("No audio frames decoded")
+        except Exception as av_err:
+            raise RuntimeError(f"Failed to read audio file '{input_path}': soundfile error ({sf_err}), av error ({av_err})")
 
     # 1. Convert to Mono
     if data.ndim > 1:
