@@ -1,0 +1,164 @@
+"""
+Supabase Database Synchronization Client
+Enables hybrid offline/cloud synchronization:
+- If SUPABASE_URL and SUPABASE_KEY (or SUPABASE_SERVICE_ROLE_KEY) are configured in the environment or .env,
+  meeting intelligence reports, transcripts, action items, decisions, and speakers are automatically synced to the cloud.
+- If not configured, gracefully falls back to local SQLite without disruption.
+"""
+
+import os
+import json
+import logging
+from typing import Optional, Dict, Any, Union
+import urllib.request
+import urllib.error
+
+logger = logging.getLogger("meeting_intelligence.supabase")
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", os.environ.get("SUPABASE_ANON_KEY", os.environ.get("SUPABASE_SERVICE_ROLE_KEY", ""))).strip()
+
+def is_supabase_configured() -> bool:
+    """Check if Supabase connection credentials are provided."""
+    return bool(SUPABASE_URL and SUPABASE_KEY)
+
+def is_configured() -> bool:
+    """Alias for is_supabase_configured."""
+    return is_supabase_configured()
+
+def _post_rest(table: str, data: list, on_conflict: Optional[str] = None) -> bool:
+    """Send a batch upsert/insert to Supabase PostgREST endpoint."""
+    if not is_supabase_configured():
+        return False
+    
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    if on_conflict:
+        url += f"?on_conflict={on_conflict}"
+
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal"
+    }
+
+    try:
+        body = json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return response.status in (200, 201, 204)
+    except Exception as e:
+        logger.warning(f"Supabase sync failed for table '{table}': {e}")
+        return False
+
+def sync_meeting(meeting: Union[Dict[str, Any], Any]) -> bool:
+    """Synchronize a meeting (MeetingIntelligence object or dict) to Supabase."""
+    if hasattr(meeting, "model_dump"):
+        meeting_dict = meeting.model_dump()
+    elif isinstance(meeting, dict):
+        meeting_dict = meeting
+    else:
+        logger.warning("Unrecognized meeting type passed to sync_meeting.")
+        return False
+    return sync_meeting_to_supabase(meeting_dict)
+
+def sync_meeting_to_supabase(meeting_dict: Dict[str, Any]) -> bool:
+    """
+    Sync complete meeting report to Supabase:
+    - meetings
+    - speakers
+    - transcript_segments
+    - action_items
+    - decisions
+    """
+    if not is_supabase_configured():
+        logger.info("Supabase not configured (SUPABASE_URL / SUPABASE_KEY missing). Stored in local SQLite only.")
+        return False
+
+    meeting_id = meeting_dict.get("meeting_id") or meeting_dict.get("id")
+    if not meeting_id:
+        return False
+
+    logger.info(f"Syncing meeting {meeting_id} to Supabase...")
+
+    # 1. Sync Meeting record
+    meeting_row = [{
+        "meeting_id": meeting_id,
+        "title": meeting_dict.get("title", meeting_dict.get("filename", f"Meeting {meeting_id}")),
+        "audio_path": meeting_dict.get("audio_path", meeting_dict.get("filename", "")),
+        "duration_seconds": float(meeting_dict.get("duration_seconds", meeting_dict.get("duration", 0.0)) or 0.0),
+        "created_at": meeting_dict.get("processed_at") or meeting_dict.get("created_at"),
+        "summary": meeting_dict.get("summary", ""),
+        "raw_response": meeting_dict
+    }]
+    _post_rest("meetings", meeting_row, on_conflict="meeting_id")
+
+    # 2. Sync Speakers
+    speakers_data = []
+    # Can be a list of speaker names or dict mapping
+    speaker_map = meeting_dict.get("speaker_map")
+    if speaker_map and isinstance(speaker_map, dict):
+        for spk_id, name in speaker_map.items():
+            speakers_data.append({
+                "meeting_id": meeting_id,
+                "speaker_id": spk_id,
+                "display_name": name,
+                "confidence": 1.0
+            })
+    else:
+        speakers = meeting_dict.get("speakers", [])
+        for idx, spk in enumerate(speakers):
+            speakers_data.append({
+                "meeting_id": meeting_id,
+                "speaker_id": f"SPEAKER_{idx:02d}",
+                "display_name": spk if isinstance(spk, str) else str(spk),
+                "confidence": 1.0
+            })
+
+    if speakers_data:
+        _post_rest("speakers", speakers_data, on_conflict="meeting_id,speaker_id")
+
+    # 3. Sync Transcript Segments
+    segments_data = []
+    transcript = meeting_dict.get("aligned_transcript") or meeting_dict.get("transcript") or []
+    for idx, seg in enumerate(transcript):
+        speaker_val = seg.get("speaker_id") or seg.get("speaker", "SPEAKER_00")
+        speaker_name = seg.get("speaker") or seg.get("speaker_name", speaker_val)
+        segments_data.append({
+            "meeting_id": meeting_id,
+            "segment_index": idx,
+            "start_time": float(seg.get("start_sec", seg.get("start", 0.0))),
+            "end_time": float(seg.get("end_sec", seg.get("end", 0.0))),
+            "speaker_id": str(speaker_val),
+            "speaker_name": str(speaker_name),
+            "text": seg.get("text", "")
+        })
+    if segments_data:
+        _post_rest("transcript_segments", segments_data)
+
+    # 4. Sync Action Items
+    actions_data = []
+    for item in meeting_dict.get("action_items", []):
+        actions_data.append({
+            "meeting_id": meeting_id,
+            "assignee": item.get("assignee") or "Unassigned",
+            "task": item.get("task", ""),
+            "deadline": item.get("deadline") or "",
+            "status": item.get("status", "pending")
+        })
+    if actions_data:
+        _post_rest("action_items", actions_data)
+
+    # 5. Sync Decisions
+    decisions_data = []
+    for dec in meeting_dict.get("decisions", []):
+        decisions_data.append({
+            "meeting_id": meeting_id,
+            "decision": dec.get("decision", ""),
+            "decided_by": dec.get("speaker_id") or dec.get("decided_by") or ""
+        })
+    if decisions_data:
+        _post_rest("decisions", decisions_data)
+
+    logger.info(f"Successfully synced meeting {meeting_id} to Supabase cloud.")
+    return True

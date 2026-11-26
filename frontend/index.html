@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Intelligence — Live & Offline</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-badge">100% Offline · Local AI</div>
+            <h1>🎙️ Meeting Intelligence</h1>
+            <p class="subtitle">Live Streaming Transcription · Speaker Identification · Real-time Task Allocation</p>
+        </header>
+
+        <!-- Mode Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-live-btn" onclick="switchTab('live')">🎙️ Live Meeting Mode</button>
+            <button class="tab-btn" id="tab-upload-btn" onclick="switchTab('upload')">📁 Upload Audio Mode</button>
+        </div>
+
+        <!-- 1. LIVE MEETING SECTION -->
+        <section id="live-section" class="card">
+            <div class="live-header">
+                <div>
+                    <h2>Live Conference Room</h2>
+                    <p class="small">Speak into your microphone. Transcription, speaker tracking, and tasks update in real-time.</p>
+                </div>
+                <div class="live-timer hidden" id="live-timer">
+                    <span class="live-dot"></span> <span id="timer-display">00:00</span>
+                </div>
+            </div>
+
+            <!-- Visualizer & Control -->
+            <div class="mic-panel">
+                <canvas id="audio-visualizer" height="60"></canvas>
+                <div class="mic-controls">
+                    <button id="start-live-btn" class="btn live-btn" onclick="startLiveMeeting()">🎙️ Start Live Meeting</button>
+                    <button id="stop-live-btn" class="btn stop-btn hidden" onclick="stopLiveMeeting()">⏹️ End Meeting & Generate Report</button>
+                </div>
+            </div>
+
+            <!-- Live Streaming Feed -->
+            <div class="live-grid hidden" id="live-grid">
+                <!-- Live Transcript Bubble Feed -->
+                <div class="live-feed-card">
+                    <h3>💬 Live Speech & Speaker Feed</h3>
+                    <div id="live-transcript-feed" class="live-feed-container">
+                        <div class="empty-state">Listening for speakers... Speak into your microphone.</div>
+                    </div>
+                </div>
+
+                <!-- Live Spotted Action Items -->
+                <div class="live-tasks-card">
+                    <h3>⚡ Real-Time Action Items Detected</h3>
+                    <div id="live-tasks-feed" class="live-task-container">
+                        <div class="empty-state">AI is listening for commitments, tasks, and deadlines...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. FILE UPLOAD SECTION -->
+        <section id="upload-section" class="card hidden">
+            <h2>📁 Process Recorded Meeting File</h2>
+            <div class="upload-area" id="drop-zone">
+                <div class="upload-icon">🎵</div>
+                <p>Drag & drop recorded meeting audio here</p>
+                <p class="small">Supports WAV, MP3, M4A, FLAC, OGG, WEBM</p>
+                <input type="file" id="file-input" accept=".wav,.mp3,.m4a,.ogg,.flac,.webm,.mp4" hidden>
+            </div>
+            <div id="file-info" class="file-info hidden">
+                <span id="file-name"></span>
+                <span id="file-size"></span>
+            </div>
+            <div class="controls">
+                <label>Min Speakers: <input type="number" id="min-speakers" value="2" min="1" max="20"></label>
+                <label>Max Speakers: <input type="number" id="max-speakers" value="15" min="2" max="20"></label>
+                <button id="process-btn" class="btn primary" disabled>🚀 Process File</button>
+            </div>
+        </section>
+
+        <!-- Progress Section (for file processing) -->
+        <section id="progress-section" class="card hidden">
+            <h2>⏳ Processing Pipeline</h2>
+            <div class="pipeline-stages">
+                <div class="stage" id="stage-preprocess">
+                    <div class="stage-icon">🔧</div>
+                    <div class="stage-info">
+                        <div class="stage-name">Audio Preprocessing</div>
+                        <div class="stage-status">Waiting...</div>
+                    </div>
+                    <div class="stage-bar"><div class="stage-fill"></div></div>
+                </div>
+                <div class="stage" id="stage-transcription">
+                    <div class="stage-icon">📝</div>
+                    <div class="stage-info">
+                        <div class="stage-name">Whisper Large-v3 Turbo (CUDA)</div>
+                        <div class="stage-status">Waiting...</div>
+                    </div>
+                    <div class="stage-bar"><div class="stage-fill"></div></div>
+                </div>
+                <div class="stage" id="stage-diarization">
+                    <div class="stage-icon">🗣️</div>
+                    <div class="stage-info">
+                        <div class="stage-name">Pyannote Community-1 Diarization</div>
+                        <div class="stage-status">Waiting...</div>
+                    </div>
+                    <div class="stage-bar"><div class="stage-fill"></div></div>
+                </div>
+                <div class="stage" id="stage-alignment">
+                    <div class="stage-icon">🔗</div>
+                    <div class="stage-info">
+                        <div class="stage-name">Speaker-Transcript Alignment</div>
+                        <div class="stage-status">Waiting...</div>
+                    </div>
+                    <div class="stage-bar"><div class="stage-fill"></div></div>
+                </div>
+                <div class="stage" id="stage-intelligence">
+                    <div class="stage-icon">🧠</div>
+                    <div class="stage-info">
+                        <div class="stage-name">Qwen3.5-0.8B Meeting Intelligence</div>
+                        <div class="stage-status">Waiting...</div>
+                    </div>
+                    <div class="stage-bar"><div class="stage-fill"></div></div>
+                </div>
+                <div class="stage" id="stage-saving">
+                    <div class="stage-icon">💾</div>
+                    <div class="stage-info">
+                        <div class="stage-name">Saving Intelligence to Database</div>
+                        <div class="stage-status">Waiting...</div>
+                    </div>
+                    <div class="stage-bar"><div class="stage-fill"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final Report Section -->
+        <section id="results-section" class="card hidden">
+            <div class="report-header">
+                <h2>📊 Structured Meeting Intelligence Report</h2>
+                <button class="btn small" onclick="window.print()">🖨️ Print / Export PDF</button>
+            </div>
+
+            <!-- Summary -->
+            <div class="result-block">
+                <h3>📋 Executive Summary</h3>
+                <p id="result-summary" class="summary-box"></p>
+            </div>
+
+            <!-- Speakers Identified -->
+            <div class="result-block">
+                <h3>🗣️ Speakers Identified</h3>
+                <div id="result-speakers" class="speaker-tags"></div>
+            </div>
+
+            <!-- Action Items -->
+            <div class="result-block">
+                <h3>✅ Action Items & Task Allocations</h3>
+                <div id="result-actions" class="action-items"></div>
+            </div>
+
+            <!-- Decisions -->
+            <div class="result-block">
+                <h3>🔨 Decisions Taken</h3>
+                <div id="result-decisions"></div>
+            </div>
+
+            <!-- Unresolved & Key Points -->
+            <div class="grid-two">
+                <div class="result-block">
+                    <h3>❓ Unresolved Issues</h3>
+                    <ul id="result-unresolved"></ul>
+                </div>
+                <div class="result-block">
+                    <h3>⭐ Key Discussion Points</h3>
+                    <ul id="result-important"></ul>
+                </div>
+            </div>
+
+            <!-- Full Transcript -->
+            <div class="result-block">
+                <h3>📜 Full Aligned Transcript <button class="btn small" onclick="toggleTranscript()">Toggle View</button></h3>
+                <div id="result-transcript" class="transcript hidden"></div>
+            </div>
+        </section>
+
+        <!-- History -->
+        <section id="history-section" class="card">
+            <h2>📂 Meeting History</h2>
+            <div id="meeting-list"></div>
+        </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

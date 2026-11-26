@@ -1,0 +1,53 @@
+# Git Ignore for Meeting Intelligence Pipeline
+
+# Model weights and binaries (downloaded via scripts or Hugging Face)
+models/
+tools/
+*.bin
+*.gguf
+*.pt
+*.pth
+*.onnx
+*.zip
+*.tar
+*.tar.gz
+*.exe
+*.dll
+
+# Audio test files & recordings
+audio/
+*.mp3
+*.wav
+*.m4a
+*.ogg
+*.flac
+
+# Local databases & caches
+*.db
+*.sqlite
+*.sqlite3
+meeting_intelligence.db
+.cache/
+transcripts/
+results/
+*.log
+
+# Python virtual environment & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Environment configs (API keys & Supabase credentials)
+.env
+.env.local
+.env.*.local
+
+# Operating System files
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+.DS_Store
