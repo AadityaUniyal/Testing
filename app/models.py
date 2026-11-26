@@ -1,8 +1,8 @@
 """
-Pydantic models — shared data structures for the pipeline.
+Pydantic models — shared data structures matching the Manent meeting intelligence specification.
 """
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -21,22 +21,37 @@ class SpeakerSegment(BaseModel):
 class AlignedSegment(BaseModel):
     start: float
     end: float
+    timestamp_str: str = ""
     speaker_id: str
+    speaker_name: str = ""
     text: str
+
+
+class SpeakerStat(BaseModel):
+    speaker_id: str
+    name: str
+    total_seconds: float
+    formatted_time: str
+    percentage: float
+    turn_count: int
 
 
 class ActionItem(BaseModel):
     task: str
-    assignee: Optional[str] = None
-    deadline: Optional[str] = None
+    assignee: Optional[str] = "Unassigned"
+    deadline: Optional[str] = "Not specified"
     evidence: Optional[str] = None
+    timestamp: Optional[str] = None
     commitment_type: Optional[str] = None
-    status: str = "pending"
+    status: str = "open"  # open, in_progress, completed
 
 
 class Decision(BaseModel):
     decision: str
-    speaker_id: Optional[str] = None
+    status: str = "RESOLVED"  # RESOLVED, DEFERRED
+    decided_by: Optional[str] = None
+    timestamp: Optional[str] = None
+    evidence: Optional[str] = None
 
 
 class MeetingIntelligence(BaseModel):
@@ -44,13 +59,15 @@ class MeetingIntelligence(BaseModel):
     filename: str
     duration_seconds: float = 0.0
     processed_at: str = ""
-    speakers: list[str] = []
+    speakers: List[str] = []
+    speaker_stats: List[SpeakerStat] = []
     summary: str = ""
-    decisions: list[Decision] = []
-    action_items: list[ActionItem] = []
-    unresolved_issues: list[str] = []
-    important_points: list[str] = []
-    aligned_transcript: list[AlignedSegment] = []
+    key_topics: List[str] = []
+    decisions: List[Decision] = []
+    action_items: List[ActionItem] = []
+    unresolved_issues: List[str] = []
+    important_points: List[str] = []
+    aligned_transcript: List[AlignedSegment] = []
 
 
 class PipelineStatus(BaseModel):

@@ -96,7 +96,8 @@ async def live_meeting_websocket(websocket: WebSocket, meeting_id: str):
                 await session.ingest_chunk(message["bytes"])
             elif "text" in message and message["text"]:
                 data = json.loads(message["text"])
-                if data.get("action") == "STOP_MEETING":
+                action_val = str(data.get("action", "")).upper()
+                if action_val in ("STOP_MEETING", "FINISH_MEETING"):
                     print(f"[Live] Finalizing live session {meeting_id}...")
                     await websocket.send_json({"type": "status", "message": "Finalizing intelligence report..."})
                     final_meeting = await session.finalize_meeting()
@@ -166,6 +167,7 @@ async def process_meeting(meeting_id: str, min_speakers: int = 2, max_speakers: 
 
 
 @app.websocket("/ws/{meeting_id}")
+@app.websocket("/ws/meeting/{meeting_id}")
 async def websocket_endpoint(websocket: WebSocket, meeting_id: str):
     await websocket.accept()
     _ws_connections.setdefault(meeting_id, []).append(websocket)

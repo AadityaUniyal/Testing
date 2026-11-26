@@ -14,20 +14,39 @@ async def main():
     print("Executing pipeline.run_pipeline()...")
     result = await pipeline.run_pipeline(
         audio_path=test_audio,
-        meeting_id="e2e_verification_test"
+        meeting_id="manent_pipeline_benchmark"
     )
 
-    print("\n=== PIPELINE SUCCESSFUL ===")
-    print(f"Meeting ID: {result.meeting_id}")
-    print(f"Duration: {result.duration_seconds:.2f}s")
-    print(f"Speakers Identified: {result.speakers}")
-    print(f"Summary: {result.summary[:200]}...")
-    print(f"Action Items Count: {len(result.action_items)}")
+    print("\n" + "="*60)
+    print("MANENT BACKEND PIPELINE BENCHMARK REPORT")
+    print("="*60)
+    print(f"Meeting ID:       {result.meeting_id}")
+    print(f"Audio Duration:   {result.duration_seconds:.2f}s ({result.duration_seconds/60:.1f} mins)")
+    print(f"Summary:          {result.summary}")
+    print(f"Key Topics:       {result.key_topics}")
+    
+    print("\n--- SPEAKER PARTICIPATION & MINUTES SPOKEN ---")
+    for s in result.speaker_stats:
+        print(f"  • {s.name:<20} | Time: {s.formatted_time:<8} | Share: {s.percentage:5.1f}% | Turns: {s.turn_count}")
+
+    print("\n--- ACTIONFLOW (TASK ALLOCATIONS) ---")
+    print(f"Total Action Items: {len(result.action_items)}")
     for a in result.action_items:
-        print(f"  - [{a.assignee}] {a.task} (Deadline: {a.deadline})")
-    print(f"Decisions Count: {len(result.decisions)}")
+        print(f"  ⚡ [{a.assignee}] {a.task}")
+        print(f"     Deadline: {a.deadline} | Status: {a.status}")
+        if a.evidence:
+            print(f"     Evidence: \"{a.evidence}\"")
+
+    print("\n--- KEY DECISIONS & AGREEMENTS ---")
+    print(f"Total Decisions: {len(result.decisions)}")
     for d in result.decisions:
-        print(f"  - {d.decision}")
+        print(f"  ⚖️ [{d.status}] {d.decision} (Decided by: {d.decided_by or 'Consensus'})")
+        if d.evidence:
+            print(f"     Evidence: \"{d.evidence}\"")
+
+    print("\n--- SAMPLE ALIGNED TRANSCRIPT TURNS ---")
+    for t in result.aligned_transcript[:5]:
+        print(f"  [{t.timestamp_str}] {t.speaker_name}: {t.text}")
 
 if __name__ == "__main__":
     asyncio.run(main())

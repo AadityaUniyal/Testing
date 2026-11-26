@@ -3,195 +3,413 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meeting Intelligence — Live & Offline</title>
+    <title>Manent — From Conversation to Minutes. From Decisions to Action.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <div class="header-badge">100% Offline · Local AI</div>
-            <h1>🎙️ Meeting Intelligence</h1>
-            <p class="subtitle">Live Streaming Transcription · Speaker Identification · Real-time Task Allocation</p>
+<body class="manent-theme">
+    <!-- Background Aura Glows matching Figma Prototype -->
+    <div class="aura-glow aura-top-left"></div>
+    <div class="aura-glow aura-bottom-right"></div>
+
+    <div class="app-layout">
+        <!-- Top Apple Native Glass Bar -->
+        <header class="glass-nav">
+            <div class="nav-brand">
+                <div class="brand-logo-gem">
+                    <span class="gem-pulse"></span>
+                    <span class="brand-initial">M</span>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">MANENT</span>
+                    <span class="brand-badge">Local AI Engine</span>
+                </div>
+            </div>
+
+            <!-- Segmented Control Navigation -->
+            <nav class="nav-segmented-control">
+                <button class="nav-seg-btn active" id="seg-meetings-btn" onclick="navigateTo('meetings')">
+                    <span class="seg-icon">🏠</span>
+                    <span class="seg-label">Meetings</span>
+                </button>
+                <button class="nav-seg-btn" id="seg-record-btn" onclick="navigateTo('record')">
+                    <span class="seg-icon">🎙️</span>
+                    <span class="seg-label">Record Live</span>
+                </button>
+                <button class="nav-seg-btn" id="seg-import-btn" onclick="navigateTo('import')">
+                    <span class="seg-icon">📁</span>
+                    <span class="seg-label">Import Audio</span>
+                </button>
+                <button class="nav-seg-btn" id="seg-studio-btn" onclick="navigateTo('studio')">
+                    <span class="seg-icon">📑</span>
+                    <span class="seg-label">Minutes Studio</span>
+                </button>
+            </nav>
+
+            <div class="nav-actions">
+                <div class="engine-status-pill" id="engine-status-pill" title="Hardware Acceleration Status">
+                    <span class="status-dot online"></span>
+                    <span class="status-text" id="engine-status-text">Whisper Turbo · Pyannote · Qwen</span>
+                </div>
+                <button class="btn-icon-glass" onclick="refreshData()" title="Refresh Meetings">
+                    🔄
+                </button>
+            </div>
         </header>
 
-        <!-- Mode Navigation Tabs -->
-        <div class="tabs">
-            <button class="tab-btn active" id="tab-live-btn" onclick="switchTab('live')">🎙️ Live Meeting Mode</button>
-            <button class="tab-btn" id="tab-upload-btn" onclick="switchTab('upload')">📁 Upload Audio Mode</button>
-        </div>
+        <!-- Main Workspace View Container -->
+        <main class="workspace-viewport">
 
-        <!-- 1. LIVE MEETING SECTION -->
-        <section id="live-section" class="card">
-            <div class="live-header">
-                <div>
-                    <h2>Live Conference Room</h2>
-                    <p class="small">Speak into your microphone. Transcription, speaker tracking, and tasks update in real-time.</p>
-                </div>
-                <div class="live-timer hidden" id="live-timer">
-                    <span class="live-dot"></span> <span id="timer-display">00:00</span>
-                </div>
-            </div>
+            <!-- ═════════════════════════════════════════════════════════
+                 VIEW 1: MEETINGS DASHBOARD (HOME)
+            ══════════════════════════════════════════════════════════ -->
+            <section id="view-meetings" class="view-pane active">
+                <!-- Hero & Metrics Row -->
+                <div class="metrics-row">
+                    <div class="metric-glass-card">
+                        <div class="metric-header">
+                            <span class="metric-title">TOTAL MEETINGS</span>
+                            <span class="metric-icon">📑</span>
+                        </div>
+                        <div class="metric-value" id="stat-total-meetings">0</div>
+                        <div class="metric-sub">Recorded & Processed</div>
+                    </div>
 
-            <!-- Visualizer & Control -->
-            <div class="mic-panel">
-                <canvas id="audio-visualizer" height="60"></canvas>
-                <div class="mic-controls">
-                    <button id="start-live-btn" class="btn live-btn" onclick="startLiveMeeting()">🎙️ Start Live Meeting</button>
-                    <button id="stop-live-btn" class="btn stop-btn hidden" onclick="stopLiveMeeting()">⏹️ End Meeting & Generate Report</button>
-                </div>
-            </div>
+                    <div class="metric-glass-card">
+                        <div class="metric-header">
+                            <span class="metric-title">OPEN ACTION ITEMS</span>
+                            <span class="metric-icon">⚡</span>
+                        </div>
+                        <div class="metric-value highlight" id="stat-open-actions">0</div>
+                        <div class="metric-sub">Tasks needing follow-through</div>
+                    </div>
 
-            <!-- Live Streaming Feed -->
-            <div class="live-grid hidden" id="live-grid">
-                <!-- Live Transcript Bubble Feed -->
-                <div class="live-feed-card">
-                    <h3>💬 Live Speech & Speaker Feed</h3>
-                    <div id="live-transcript-feed" class="live-feed-container">
-                        <div class="empty-state">Listening for speakers... Speak into your microphone.</div>
+                    <div class="metric-glass-card">
+                        <div class="metric-header">
+                            <span class="metric-title">HOURS PROCESSED</span>
+                            <span class="metric-icon">⏱️</span>
+                        </div>
+                        <div class="metric-value" id="stat-total-hours">0.0h</div>
+                        <div class="metric-sub">Speech-to-text audio</div>
+                    </div>
+
+                    <div class="metric-glass-card action-card">
+                        <div class="metric-header">
+                            <span class="metric-title">QUICK CAPTURE</span>
+                            <span class="metric-icon">🚀</span>
+                        </div>
+                        <button class="btn-primary-gradient full-width" onclick="navigateTo('record')">
+                            🎙️ Start In-Person Meeting
+                        </button>
+                        <button class="btn-secondary-glass full-width" onclick="navigateTo('import')">
+                            📁 Import Audio Recording
+                        </button>
                     </div>
                 </div>
 
-                <!-- Live Spotted Action Items -->
-                <div class="live-tasks-card">
-                    <h3>⚡ Real-Time Action Items Detected</h3>
-                    <div id="live-tasks-feed" class="live-task-container">
-                        <div class="empty-state">AI is listening for commitments, tasks, and deadlines...</div>
+                <!-- Recent Meetings List Section -->
+                <div class="section-card-glass">
+                    <div class="section-card-header">
+                        <div>
+                            <h2>Recent Meetings & Minutes</h2>
+                            <p class="section-desc">Select any meeting to inspect minutes, speaker analytics, and action items.</p>
+                        </div>
+                        <div class="search-filter-box">
+                            <input type="text" id="meetings-search-input" placeholder="Search discussions, speakers, or topics..." oninput="filterMeetingsList()">
+                        </div>
+                    </div>
+
+                    <div id="meetings-list-container" class="meetings-grid">
+                        <div class="empty-state-box">
+                            <div class="empty-icon">🎙️</div>
+                            <h3>No meetings recorded yet</h3>
+                            <p>Click "Start In-Person Meeting" or "Import Audio Recording" to generate minutes automatically.</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- 2. FILE UPLOAD SECTION -->
-        <section id="upload-section" class="card hidden">
-            <h2>📁 Process Recorded Meeting File</h2>
-            <div class="upload-area" id="drop-zone">
-                <div class="upload-icon">🎵</div>
-                <p>Drag & drop recorded meeting audio here</p>
-                <p class="small">Supports WAV, MP3, M4A, FLAC, OGG, WEBM</p>
-                <input type="file" id="file-input" accept=".wav,.mp3,.m4a,.ogg,.flac,.webm,.mp4" hidden>
-            </div>
-            <div id="file-info" class="file-info hidden">
-                <span id="file-name"></span>
-                <span id="file-size"></span>
-            </div>
-            <div class="controls">
-                <label>Min Speakers: <input type="number" id="min-speakers" value="2" min="1" max="20"></label>
-                <label>Max Speakers: <input type="number" id="max-speakers" value="15" min="2" max="20"></label>
-                <button id="process-btn" class="btn primary" disabled>🚀 Process File</button>
-            </div>
-        </section>
 
-        <!-- Progress Section (for file processing) -->
-        <section id="progress-section" class="card hidden">
-            <h2>⏳ Processing Pipeline</h2>
-            <div class="pipeline-stages">
-                <div class="stage" id="stage-preprocess">
-                    <div class="stage-icon">🔧</div>
-                    <div class="stage-info">
-                        <div class="stage-name">Audio Preprocessing</div>
-                        <div class="stage-status">Waiting...</div>
+            <!-- ═════════════════════════════════════════════════════════
+                 VIEW 2: IN-PERSON LIVE MEETING RECORDER
+            ══════════════════════════════════════════════════════════ -->
+            <section id="view-record" class="view-pane">
+                <div class="recorder-card-glass">
+                    <!-- Recorder Header Bar -->
+                    <div class="recorder-header-bar">
+                        <div class="meeting-context-title">
+                            <span class="badge-pill live-pill hidden" id="rec-live-badge">
+                                <span class="pulsing-red-dot"></span> LIVE IN-PERSON
+                            </span>
+                            <h2 id="rec-session-title">Ready to Record</h2>
+                            <p class="section-desc" id="rec-session-subtitle">Audio is processed locally with zero cloud leakage.</p>
+                        </div>
+
+                        <div class="recorder-timer-box hidden" id="rec-timer-box">
+                            <span class="timer-digits" id="rec-timer-display">00:00</span>
+                        </div>
                     </div>
-                    <div class="stage-bar"><div class="stage-fill"></div></div>
-                </div>
-                <div class="stage" id="stage-transcription">
-                    <div class="stage-icon">📝</div>
-                    <div class="stage-info">
-                        <div class="stage-name">Whisper Large-v3 Turbo (CUDA)</div>
-                        <div class="stage-status">Waiting...</div>
+
+                    <!-- Live Audio Waveform Canvas -->
+                    <div class="waveform-stage">
+                        <canvas id="live-audio-canvas" height="100"></canvas>
+                        <div class="waveform-overlay-prompt" id="rec-idle-prompt">
+                            <span>Press the record button to begin live transcription & diarization</span>
+                        </div>
                     </div>
-                    <div class="stage-bar"><div class="stage-fill"></div></div>
-                </div>
-                <div class="stage" id="stage-diarization">
-                    <div class="stage-icon">🗣️</div>
-                    <div class="stage-info">
-                        <div class="stage-name">Pyannote Community-1 Diarization</div>
-                        <div class="stage-status">Waiting...</div>
+
+                    <!-- Recorder Action Buttons -->
+                    <div class="recorder-controls-dock">
+                        <button id="btn-start-record" class="btn-recorder-action start" onclick="startLiveMeeting()">
+                            <span class="btn-icon">🎙️</span> Start In-Person Meeting
+                        </button>
+                        <button id="btn-stop-record" class="btn-recorder-action stop hidden" onclick="stopLiveMeeting()">
+                            <span class="btn-icon">⏹️</span> Finish Meeting & Generate Minutes
+                        </button>
+                        <button id="btn-cancel-record" class="btn-recorder-sub hidden" onclick="cancelLiveMeeting()">
+                            Cancel
+                        </button>
                     </div>
-                    <div class="stage-bar"><div class="stage-fill"></div></div>
-                </div>
-                <div class="stage" id="stage-alignment">
-                    <div class="stage-icon">🔗</div>
-                    <div class="stage-info">
-                        <div class="stage-name">Speaker-Transcript Alignment</div>
-                        <div class="stage-status">Waiting...</div>
+
+                    <!-- Live Split Streams (Speech Bubble Feed + Action Items Feed) -->
+                    <div class="live-streams-split hidden" id="rec-live-split">
+                        <!-- Live Dialogue Feed -->
+                        <div class="stream-panel">
+                            <div class="stream-header">
+                                <h3>💬 Live Dialogue & Speakers</h3>
+                                <span class="badge-counter" id="rec-dialogue-count">0 turns</span>
+                            </div>
+                            <div id="live-dialogue-feed" class="stream-scroll-feed">
+                                <div class="empty-feed-hint">Waiting for voice input...</div>
+                            </div>
+                        </div>
+
+                        <!-- Real-time ActionFlow Feed -->
+                        <div class="stream-panel">
+                            <div class="stream-header">
+                                <h3>⚡ Real-time ActionFlow</h3>
+                                <span class="badge-counter highlight" id="rec-action-count">0 tasks</span>
+                            </div>
+                            <div id="live-action-feed" class="stream-scroll-feed">
+                                <div class="empty-feed-hint">AI detects task commitments and deadlines in real-time...</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stage-bar"><div class="stage-fill"></div></div>
                 </div>
-                <div class="stage" id="stage-intelligence">
-                    <div class="stage-icon">🧠</div>
-                    <div class="stage-info">
-                        <div class="stage-name">Qwen3.5-0.8B Meeting Intelligence</div>
-                        <div class="stage-status">Waiting...</div>
+            </section>
+
+
+            <!-- ═════════════════════════════════════════════════════════
+                 VIEW 3: IMPORT AUDIO RECORDING
+            ══════════════════════════════════════════════════════════ -->
+            <section id="view-import" class="view-pane">
+                <div class="section-card-glass">
+                    <div class="section-card-header">
+                        <div>
+                            <h2>Import Audio File</h2>
+                            <p class="section-desc">Upload meetings recorded on your phone, Zoom, Teams, or voice recorder.</p>
+                        </div>
                     </div>
-                    <div class="stage-bar"><div class="stage-fill"></div></div>
-                </div>
-                <div class="stage" id="stage-saving">
-                    <div class="stage-icon">💾</div>
-                    <div class="stage-info">
-                        <div class="stage-name">Saving Intelligence to Database</div>
-                        <div class="stage-status">Waiting...</div>
+
+                    <!-- Drag & Drop Zone -->
+                    <div class="drop-zone-glass" id="file-drop-zone">
+                        <div class="drop-icon-sphere">📁</div>
+                        <h3>Drag & drop your audio recording here</h3>
+                        <p class="drop-sub">Supported formats: MP3, WAV, M4A, AAC, FLAC, OGG, WEBM</p>
+                        <button class="btn-secondary-glass" onclick="document.getElementById('audio-file-input').click()">
+                            Browse Local Files
+                        </button>
+                        <input type="file" id="audio-file-input" accept=".wav,.mp3,.m4a,.aac,.flac,.ogg,.webm,.mp4" hidden>
                     </div>
-                    <div class="stage-bar"><div class="stage-fill"></div></div>
+
+                    <!-- Selected File Preview & Settings -->
+                    <div id="file-selected-card" class="file-card-glass hidden">
+                        <div class="file-card-left">
+                            <span class="file-format-badge" id="preview-file-ext">MP3</span>
+                            <div class="file-names-box">
+                                <span class="file-title" id="preview-file-name">recording.mp3</span>
+                                <span class="file-size" id="preview-file-size">12.4 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="speaker-bounds-controls">
+                            <div class="control-group">
+                                <label>Expected Min Speakers</label>
+                                <input type="number" id="input-min-speakers" value="2" min="1" max="15">
+                            </div>
+                            <div class="control-group">
+                                <label>Expected Max Speakers</label>
+                                <input type="number" id="input-max-speakers" value="10" min="2" max="25">
+                            </div>
+                        </div>
+
+                        <button id="btn-process-file" class="btn-primary-gradient" onclick="executeFileProcessing()">
+                            🚀 Process with Manent Pipeline
+                        </button>
+                    </div>
+
+                    <!-- Pipeline Progress Stepper (Visible during processing) -->
+                    <div id="pipeline-stepper" class="stepper-glass-panel hidden">
+                        <div class="stepper-header">
+                            <h3>⚡ Multi-Model Execution Brain</h3>
+                            <span class="stepper-current-msg" id="stepper-msg">Initializing...</span>
+                        </div>
+
+                        <div class="stepper-stages-grid">
+                            <div class="step-card" id="step-preprocess">
+                                <div class="step-num">1</div>
+                                <div class="step-label">Audio Normalization</div>
+                                <div class="step-detail">16kHz Mono Resampling</div>
+                                <div class="step-status">Pending</div>
+                            </div>
+                            <div class="step-card" id="step-transcription">
+                                <div class="step-num">2</div>
+                                <div class="step-label">Whisper Large-v3</div>
+                                <div class="step-detail">CUDA Word Timestamps</div>
+                                <div class="step-status">Pending</div>
+                            </div>
+                            <div class="step-card" id="step-diarization">
+                                <div class="step-num">3</div>
+                                <div class="step-label">Pyannote Community-1</div>
+                                <div class="step-detail">Multi-Speaker Turns</div>
+                                <div class="step-status">Pending</div>
+                            </div>
+                            <div class="step-card" id="step-alignment">
+                                <div class="step-num">4</div>
+                                <div class="step-label">Temporal Alignment</div>
+                                <div class="step-detail">Interval Intersection</div>
+                                <div class="step-status">Pending</div>
+                            </div>
+                            <div class="step-card" id="step-intelligence">
+                                <div class="step-num">5</div>
+                                <div class="step-label">Qwen 3.5 Intelligence</div>
+                                <div class="step-detail">Names, Minutes & ActionFlow</div>
+                                <div class="step-status">Pending</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Final Report Section -->
-        <section id="results-section" class="card hidden">
-            <div class="report-header">
-                <h2>📊 Structured Meeting Intelligence Report</h2>
-                <button class="btn small" onclick="window.print()">🖨️ Print / Export PDF</button>
-            </div>
 
-            <!-- Summary -->
-            <div class="result-block">
-                <h3>📋 Executive Summary</h3>
-                <p id="result-summary" class="summary-box"></p>
-            </div>
-
-            <!-- Speakers Identified -->
-            <div class="result-block">
-                <h3>🗣️ Speakers Identified</h3>
-                <div id="result-speakers" class="speaker-tags"></div>
-            </div>
-
-            <!-- Action Items -->
-            <div class="result-block">
-                <h3>✅ Action Items & Task Allocations</h3>
-                <div id="result-actions" class="action-items"></div>
-            </div>
-
-            <!-- Decisions -->
-            <div class="result-block">
-                <h3>🔨 Decisions Taken</h3>
-                <div id="result-decisions"></div>
-            </div>
-
-            <!-- Unresolved & Key Points -->
-            <div class="grid-two">
-                <div class="result-block">
-                    <h3>❓ Unresolved Issues</h3>
-                    <ul id="result-unresolved"></ul>
+            <!-- ═════════════════════════════════════════════════════════
+                 VIEW 4: MINUTES STUDIO (INSPECTION & REVIEW)
+            ══════════════════════════════════════════════════════════ -->
+            <section id="view-studio" class="view-pane">
+                <div id="studio-empty-state" class="empty-state-box">
+                    <div class="empty-icon">📑</div>
+                    <h3>No meeting selected</h3>
+                    <p>Select a meeting from the <a href="javascript:navigateTo('meetings')">Meetings list</a> or record one now.</p>
                 </div>
-                <div class="result-block">
-                    <h3>⭐ Key Discussion Points</h3>
-                    <ul id="result-important"></ul>
+
+                <div id="studio-content-layout" class="studio-layout hidden">
+                    <!-- Meeting Meta Glass Header -->
+                    <div class="studio-header-glass">
+                        <div class="studio-title-block">
+                            <span class="series-badge" id="studio-series-badge">MANENT MEETING RECORD</span>
+                            <h1 id="studio-meeting-title">Product Planning & Strategy Sync</h1>
+                            <div class="studio-sub-meta">
+                                <span id="studio-date-time">📅 Nov 26, 2026 · 11:30 AM</span>
+                                <span class="meta-dot">·</span>
+                                <span id="studio-duration">⏱️ 4.0 mins</span>
+                                <span class="meta-dot">·</span>
+                                <span id="studio-speaker-count">👥 3 Speakers</span>
+                            </div>
+                        </div>
+
+                        <div class="studio-header-actions">
+                            <button class="btn-secondary-glass" onclick="exportMinutesMarkdown()">
+                                📄 Export Markdown
+                            </button>
+                            <button class="btn-secondary-glass" onclick="exportMinutesJSON()">
+                                💾 Export JSON
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Speaker Analytics Bar (Figma Manent Spec) -->
+                    <div class="speaker-analytics-glass">
+                        <div class="analytics-header">
+                            <h3>🗣️ Speaker Participation & Minutes Spoken</h3>
+                            <span class="analytics-subtitle">Time distribution across identified participants</span>
+                        </div>
+                        <div id="speaker-bars-container" class="speaker-bars-grid">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Studio Tabbed Navigation (Minutes | ActionFlow | Decisions | Transcript) -->
+                    <div class="studio-tabs-bar">
+                        <button class="studio-tab-btn active" id="tab-minutes-btn" onclick="switchStudioTab('minutes')">
+                            📝 Minutes & Summary
+                        </button>
+                        <button class="studio-tab-btn" id="tab-actions-btn" onclick="switchStudioTab('actions')">
+                            ⚡ ActionFlow (<span id="studio-actions-count">0</span>)
+                        </button>
+                        <button class="studio-tab-btn" id="tab-decisions-btn" onclick="switchStudioTab('decisions')">
+                            ⚖️ Key Decisions (<span id="studio-decisions-count">0</span>)
+                        </button>
+                        <button class="studio-tab-btn" id="tab-transcript-btn" onclick="switchStudioTab('transcript')">
+                            📜 Full Transcript (<span id="studio-turns-count">0</span>)
+                        </button>
+                    </div>
+
+                    <!-- Studio Tab 1: Minutes & Executive Summary -->
+                    <div id="studio-pane-minutes" class="studio-pane active">
+                        <div class="minutes-glass-card">
+                            <h3>Executive Summary</h3>
+                            <div id="studio-summary-text" class="minutes-prose">Loading summary...</div>
+                        </div>
+
+                        <div class="minutes-glass-card" id="studio-topics-card">
+                            <h3>Key Discussion Topics</h3>
+                            <div id="studio-topics-list" class="topics-pills-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Studio Tab 2: ActionFlow (Task Allocations) -->
+                    <div id="studio-pane-actions" class="studio-pane">
+                        <div class="actions-view-header">
+                            <div>
+                                <h3>Action Items & Commitments</h3>
+                                <p class="section-desc">Tasks mapped with assignee, deadline, and contextual evidence from the conversation.</p>
+                            </div>
+                        </div>
+                        <div id="studio-actions-grid" class="action-items-cards-grid">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Studio Tab 3: Key Decisions -->
+                    <div id="studio-pane-decisions" class="studio-pane">
+                        <div class="decisions-view-header">
+                            <div>
+                                <h3>Decisions & Agreements</h3>
+                                <p class="section-desc">Consensus and policy decisions reached during the meeting.</p>
+                            </div>
+                        </div>
+                        <div id="studio-decisions-grid" class="decisions-cards-grid">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Studio Tab 4: Full Timestamped Transcript -->
+                    <div id="studio-pane-transcript" class="studio-pane">
+                        <div class="transcript-view-header">
+                            <div class="transcript-search-box">
+                                <input type="text" id="transcript-filter-input" placeholder="Filter dialogue by text or speaker..." oninput="filterTranscriptTurns()">
+                            </div>
+                        </div>
+                        <div id="studio-transcript-stream" class="transcript-stream-container">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Full Transcript -->
-            <div class="result-block">
-                <h3>📜 Full Aligned Transcript <button class="btn small" onclick="toggleTranscript()">Toggle View</button></h3>
-                <div id="result-transcript" class="transcript hidden"></div>
-            </div>
-        </section>
-
-        <!-- History -->
-        <section id="history-section" class="card">
-            <h2>📂 Meeting History</h2>
-            <div id="meeting-list"></div>
-        </section>
+        </main>
     </div>
 
     <script src="/static/app.js"></script>

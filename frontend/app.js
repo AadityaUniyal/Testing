@@ -1,42 +1,174 @@
-// Meeting Intelligence — Live Streaming & Offline Processing
+/**
+ * MANENT — Frontend Web Application
+ * Matches Figma Prototype: Tar6q6zhuhMDIOBlSKzkdI (Manent)
+ */
 
-const API = '';
-let activeTab = 'live';
+let allMeetings = [];
+let currentMeeting = null;
+let currentStudioTab = "minutes";
 
-// Live Meeting State
-let liveWs = null;
-let audioContext = null;
+// Live Recording State
 let mediaStream = null;
-let scriptProcessor = null;
-let liveMeetingId = null;
-let timerInterval = null;
-let timerSeconds = 0;
-let isLiveActive = false;
-
-// Visualizer
+let audioContext = null;
 let analyser = null;
-let visualizerAnimId = null;
+let liveWs = null;
+let isRecording = false;
+let recordTimerInterval = null;
+let recordSeconds = 0;
+let liveMeetingId = null;
+let animationFrameId = null;
 
-// Tab Switching
-function switchTab(tab) {
-    activeTab = tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${tab}-btn`).classList.add('active');
+// Selected File State
+let selectedFile = null;
 
-    if (tab === 'live') {
-        document.getElementById('live-section').classList.remove('hidden');
-        document.getElementById('upload-section').classList.add('hidden');
-    } else {
-        document.getElementById('live-section').classList.add('hidden');
-        document.getElementById('upload-section').classList.remove('hidden');
+// Speaker color palette
+const SPEAKER_COLORS = [
+    { text: "#38bdf8", bg: "rgba(56, 189, 248, 0.15)", border: "rgba(56, 189, 248, 0.3)" },
+    { text: "#c084fc", bg: "rgba(192, 132, 252, 0.15)", border: "rgba(192, 132, 252, 0.3)" },
+    { text: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.3)" },
+    { text: "#34d399", bg: "rgba(52, 211, 153, 0.15)", border: "rgba(52, 211, 153, 0.3)" },
+    { text: "#f472b6", bg: "rgba(244, 114, 182, 0.15)", border: "rgba(244, 114, 182, 0.3)" },
+];
+
+function getSpeakerColor(index) {
+    return SPEAKER_COLORS[index % SPEAKER_COLORS.length];
+}
+
+// ── 1. NAVIGATION & INITIALIZATION ────────────────────────────
+
+document.addEventListener("DOMContentLoaded", () => {
+    initDropZone();
+    loadMeetings();
+    checkEngineHealth();
+});
+
+function navigateTo(viewId) {
+    document.querySelectorAll(".nav-seg-btn").forEach(btn => btn.classList.remove("active"));
+    const activeBtn = document.getElementById(`seg-${viewId}-btn`);
+    if (activeBtn) activeBtn.classList.add("active");
+
+    document.querySelectorAll(".view-pane").forEach(pane => pane.classList.remove("active"));
+    const activePane = document.getElementById(`view-${viewId}`);
+    if (activePane) activePane.classList.add("active");
+
+    // Proactively warm models when navigating to Record or Import
+    if (viewId === "record" || viewId === "import") {
+        fetch("/api/trigger-models", { method: "POST" }).catch(() => {});
     }
 }
 
-// ── 1. LIVE STREAMING MICROPHONE ENGINE ─────────────────────────
+async function checkEngineHealth() {
+    try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        const dot = document.querySelector(".status-dot");
+        const text = document.getElementById("engine-status-text");
+        if (data.status === "ok") {
+            dot.className = "status-dot online";
+            text.textContent = "Whisper Turbo (CUDA) · Pyannote · Qwen (GPU)";
+        }
+    } catch (e) {
+        console.warn("Health check error:", e);
+    }
+}
+
+async function refreshData() {
+    await loadMeetings();
+    await checkEngineHealth();
+}
+
+// ── 2. MEETINGS DASHBOARD ──────────────────────────────────────
+
+async function loadMeetings() {
+    try {
+        const res = await fetch("/api/meetings");
+        allMeetings = await res.json();
+        renderMetrics();
+        renderMeetingsGrid(allMeetings);
+    } catch (err) {
+        console.error("Failed to load meetings:", err);
+    }
+}
+
+function renderMetrics() {
+    const totalMeetings = allMeetings.length;
+    let totalActions = 0;
+    let totalSeconds = 0;
+
+    allMeetings.forEach(m => {
+        totalSeconds += m.duration_sec || 0;
+        if (m.action_items && Array.isArray(m.action_items)) {
+            totalActions += m.action_items.length;
+        }
+    });
+
+    document.getElementById("stat-total-meetings").textContent = totalMeetings;
+    document.getElementById("stat-open-actions").textContent = totalActions;
+    document.getElementById("stat-total-hours").textContent = (totalSeconds / 3600).toFixed(1) + "h";
+}
+
+function renderMeetingsGrid(meetings) {
+    const container = document.getElementById("meetings-list-container");
+    container.innerHTML = "";
+
+    if (!meetings || meetings.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state-box">
+                <div class="empty-icon">🎙️</div>
+                <h3>No meetings recorded yet</h3>
+                <p>Click "Start In-Person Meeting" or "Import Audio Recording" to generate minutes automatically.</p>
+            </div>
+        `;
+        return;
+    }
+
+    meetings.forEach((m, idx) => {
+        const card = document.createElement("div");
+        card.className = "meeting-item-card";
+        card.onclick = () => openMeetingInStudio(m.meeting_id);
+
+        const durMin = (m.duration_sec / 60).toFixed(1);
+        const dateStr = m.processed_at ? new Date(m.processed_at).toLocaleDateString("en-US", {
+            month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+        }) : "Recent Meeting";
+
+        const speakers = m.speakers || [];
+        const actionsCount = (m.action_items || []).length;
+
+        card.innerHTML = `
+            <div class="meeting-card-top">
+                <span class="meeting-date-badge">${dateStr}</span>
+                <span class="meeting-duration-pill">⏱️ ${durMin} min</span>
+            </div>
+            <div class="meeting-item-title">${m.filename || `Meeting ${m.meeting_id}`}</div>
+            <div class="meeting-item-summary">${m.summary || "Discussion recorded. Click to inspect minutes and action items."}</div>
+            <div class="meeting-card-footer">
+                <div class="speakers-avatar-group">
+                    ${speakers.slice(0, 3).map((s, i) => `
+                        <span class="spk-avatar-pill">${typeof s === 'string' ? s : s.name || 'Speaker'}</span>
+                    `).join('')}
+                    ${speakers.length > 3 ? `<span class="spk-avatar-pill">+${speakers.length - 3}</span>` : ''}
+                </div>
+                ${actionsCount > 0 ? `<span class="meeting-actions-pill">⚡ ${actionsCount} tasks</span>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function filterMeetingsList() {
+    const query = document.getElementById("meetings-search-input").value.toLowerCase();
+    const filtered = allMeetings.filter(m => {
+        const text = `${m.filename} ${m.summary} ${(m.speakers || []).join(' ')}`.toLowerCase();
+        return text.includes(query);
+    });
+    renderMeetingsGrid(filtered);
+}
+
+// ── 3. LIVE IN-PERSON MEETING RECORDER ──────────────────────────
 
 async function startLiveMeeting() {
-    // Proactively trigger and wake up models on click
-    fetch('/api/trigger-models', { method: 'POST' }).catch(() => {});
+    fetch("/api/trigger-models", { method: "POST" }).catch(() => {});
 
     try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -48,429 +180,540 @@ async function startLiveMeeting() {
             }
         });
     } catch (err) {
-        alert("Microphone access denied or not available: " + err.message);
+        alert("Microphone permission required for in-person recording: " + err.message);
         return;
     }
 
-    liveMeetingId = `live_${Date.now()}`;
+    liveMeetingId = `mtg_live_${Date.now()}`;
     const wsUrl = `ws://${location.host}/ws/live-meeting/${liveMeetingId}`;
     liveWs = new WebSocket(wsUrl);
     liveWs.binaryType = "arraybuffer";
 
     liveWs.onopen = () => {
         console.log("[Live] WebSocket connected!");
-        initAudioPipeline();
-        isLiveActive = true;
+        initAudioCapture();
+        isRecording = true;
 
-        // UI Changes
-        document.getElementById('start-live-btn').classList.add('hidden');
-        document.getElementById('stop-live-btn').classList.remove('hidden');
-        document.getElementById('live-timer').classList.remove('hidden');
-        document.getElementById('live-grid').classList.remove('hidden');
-        document.getElementById('results-section').classList.add('hidden');
+        // UI Updates
+        document.getElementById("btn-start-record").classList.add("hidden");
+        document.getElementById("btn-stop-record").classList.remove("hidden");
+        document.getElementById("btn-cancel-record").classList.remove("hidden");
+        document.getElementById("rec-live-badge").classList.remove("hidden");
+        document.getElementById("rec-timer-box").classList.remove("hidden");
+        document.getElementById("rec-live-split").classList.remove("hidden");
+        document.getElementById("rec-idle-prompt").classList.add("hidden");
+        document.getElementById("rec-session-title").textContent = "In-Person Discussion in Progress";
+        document.getElementById("rec-session-subtitle").textContent = "Capturing multi-speaker conversation, transcribing, and extracting ActionFlow...";
 
-        // Start Timer
-        timerSeconds = 0;
-        updateTimerDisplay();
-        timerInterval = setInterval(() => {
-            timerSeconds++;
-            updateTimerDisplay();
+        // Timer
+        recordSeconds = 0;
+        updateRecordTimer();
+        recordTimerInterval = setInterval(() => {
+            recordSeconds++;
+            updateRecordTimer();
         }, 1000);
     };
 
     liveWs.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type === "live_transcript") {
-            appendLiveTranscript(msg);
+            appendLiveTurn(msg);
         } else if (msg.type === "live_task") {
-            appendLiveTask(msg.item);
+            appendLiveAction(msg.item);
         } else if (msg.type === "meeting_completed") {
-            console.log("[Live] Final report received:", msg.data);
-            cleanupAudio();
-            renderResults(msg.data);
-            document.getElementById('results-section').classList.remove('hidden');
-            loadHistory();
+            console.log("[Live] Final minutes received:", msg.data);
+            cleanupRecorder();
+            openMeetingInStudio(msg.data.meeting_id || liveMeetingId);
+            loadMeetings();
         }
     };
 
     liveWs.onerror = (e) => console.error("[Live] WebSocket error:", e);
     liveWs.onclose = () => {
-        console.log("[Live] Session closed");
-        cleanupAudio();
+        console.log("[Live] Session closed.");
+        cleanupRecorder();
     };
 }
 
-function initAudioPipeline() {
+function initAudioCapture() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
     const source = audioContext.createMediaStreamSource(mediaStream);
-
-    // Setup visualizer
     analyser = audioContext.createAnalyser();
-    analyser.fftSize = 64;
+    analyser.fftSize = 256;
     source.connect(analyser);
-    drawVisualizer();
 
-    // 4096 samples at 16kHz ≈ 250ms chunks
-    scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-    source.connect(scriptProcessor);
-    scriptProcessor.connect(audioContext.destination);
+    startVisualizer();
 
-    let pcmBuffer = [];
-    const BUFFER_LIMIT = 16000 * 2.5; // Send audio every ~2.5 seconds
+    // Stream 16kHz PCM chunks over WebSocket
+    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    source.connect(processor);
+    processor.connect(audioContext.destination);
 
-    scriptProcessor.onaudioprocess = (e) => {
-        if (!isLiveActive || !liveWs || liveWs.readyState !== WebSocket.OPEN) return;
-
+    processor.onaudioprocess = (e) => {
+        if (!isRecording || !liveWs || liveWs.readyState !== WebSocket.OPEN) return;
         const inputData = e.inputBuffer.getChannelData(0);
-        // Convert Float32 to 16-bit PCM
+        // Convert float32 to int16 PCM
         const pcm16 = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
             let s = Math.max(-1, Math.min(1, inputData[i]));
             pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
-
-        pcmBuffer.push(pcm16);
-
-        let totalLength = pcmBuffer.reduce((acc, curr) => acc + curr.length, 0);
-        if (totalLength >= BUFFER_LIMIT) {
-            // Concatenate buffer and send to backend
-            const merged = new Int16Array(totalLength);
-            let offset = 0;
-            for (let chunk of pcmBuffer) {
-                merged.set(chunk, offset);
-                offset += chunk.length;
-            }
-            liveWs.send(merged.buffer);
-            pcmBuffer = [];
-        }
+        liveWs.send(pcm16.buffer);
     };
 }
 
-function stopLiveMeeting() {
-    if (!isLiveActive || !liveWs) return;
-    isLiveActive = false;
-
-    document.getElementById('stop-live-btn').disabled = true;
-    document.getElementById('stop-live-btn').textContent = "⏳ Generating AI Intelligence...";
-
-    // Send stop signal to server
-    liveWs.send(JSON.stringify({ action: "STOP_MEETING" }));
-}
-
-function cleanupAudio() {
-    if (timerInterval) clearInterval(timerInterval);
-    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-    if (scriptProcessor) scriptProcessor.disconnect();
-    if (audioContext) audioContext.close();
-    if (visualizerAnimId) cancelAnimationFrame(visualizerAnimId);
-
-    document.getElementById('start-live-btn').classList.remove('hidden');
-    document.getElementById('stop-live-btn').classList.add('hidden');
-    document.getElementById('stop-live-btn').disabled = false;
-    document.getElementById('stop-live-btn').textContent = "⏹️ End Meeting & Generate Report";
-    document.getElementById('live-timer').classList.add('hidden');
-}
-
-function updateTimerDisplay() {
-    const mins = Math.floor(timerSeconds / 60);
-    const secs = timerSeconds % 60;
-    document.getElementById('timer-display').textContent = `${pad(mins)}:${pad(secs)}`;
-}
-
-function drawVisualizer() {
-    const canvas = document.getElementById('audio-visualizer');
-    const ctx = canvas.getContext('2d');
+function startVisualizer() {
+    const canvas = document.getElementById("live-audio-canvas");
+    const ctx = canvas.getContext("2d");
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    function render() {
-        visualizerAnimId = requestAnimationFrame(render);
+    function draw() {
+        if (!isRecording) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+        animationFrameId = requestAnimationFrame(draw);
         analyser.getByteFrequencyData(dataArray);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const barWidth = (canvas.width / bufferLength) * 2;
+        ctx.fillStyle = "rgba(11, 14, 22, 0.4)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / bufferLength) * 2.2;
         let x = 0;
 
         for (let i = 0; i < bufferLength; i++) {
-            const barHeight = (dataArray[i] / 255) * canvas.height * 0.9;
-            ctx.fillStyle = `rgba(79, 140, 255, ${0.3 + (dataArray[i] / 255) * 0.7})`;
+            const barHeight = (dataArray[i] / 255) * canvas.height * 0.85;
+            const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
+            gradient.addColorStop(0, "#6366f1");
+            gradient.addColorStop(1, "#c084fc");
+
+            ctx.fillStyle = gradient;
             ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
             x += barWidth;
         }
     }
-    render();
+    draw();
 }
 
-function appendLiveTranscript(msg) {
-    const feed = document.getElementById('live-transcript-feed');
-    const empty = feed.querySelector('.empty-state');
-    if (empty) empty.remove();
-
-    const bubble = document.createElement('div');
-    bubble.className = 'live-bubble';
-    bubble.innerHTML = `
-        <div class="live-bubble-header">
-            <span class="live-bubble-speaker speaker-${msg.speaker}">${msg.speaker}</span>
-            <span class="live-bubble-time">${msg.start.toFixed(1)}s - ${msg.end.toFixed(1)}s</span>
-        </div>
-        <div class="live-bubble-text">${msg.text}</div>
-    `;
-    feed.appendChild(bubble);
-    feed.scrollTop = feed.scrollHeight;
+function updateRecordTimer() {
+    const m = Math.floor(recordSeconds / 60);
+    const s = recordSeconds % 60;
+    document.getElementById("rec-timer-display").textContent = 
+        `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-function appendLiveTask(item) {
-    const feed = document.getElementById('live-tasks-feed');
-    const empty = feed.querySelector('.empty-state');
+function stopLiveMeeting() {
+    if (!isRecording || !liveWs) return;
+    document.getElementById("rec-session-title").textContent = "Finalizing Minutes & ActionFlow...";
+    document.getElementById("rec-session-subtitle").textContent = "Processing full multi-speaker alignment and executive minutes...";
+    liveWs.send(JSON.stringify({ action: "finish_meeting" }));
+}
+
+function cancelLiveMeeting() {
+    if (confirm("Cancel this live meeting recording?")) {
+        cleanupRecorder();
+        navigateTo("meetings");
+    }
+}
+
+function cleanupRecorder() {
+    isRecording = false;
+    clearInterval(recordTimerInterval);
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+    }
+    if (audioContext && audioContext.state !== "closed") {
+        audioContext.close();
+        audioContext = null;
+    }
+
+    document.getElementById("btn-start-record").classList.remove("hidden");
+    document.getElementById("btn-stop-record").classList.add("hidden");
+    document.getElementById("btn-cancel-record").classList.add("hidden");
+    document.getElementById("rec-live-badge").classList.add("hidden");
+    document.getElementById("rec-timer-box").classList.add("hidden");
+    document.getElementById("rec-live-split").classList.add("hidden");
+    document.getElementById("rec-idle-prompt").classList.remove("hidden");
+    document.getElementById("rec-session-title").textContent = "Ready to Record";
+    document.getElementById("rec-session-subtitle").textContent = "Audio is processed locally with zero cloud leakage.";
+}
+
+function appendLiveTurn(msg) {
+    const feed = document.getElementById("live-dialogue-feed");
+    const empty = feed.querySelector(".empty-feed-hint");
     if (empty) empty.remove();
 
-    const card = document.createElement('div');
-    card.className = 'live-task-badge';
+    const card = document.createElement("div");
+    card.className = "live-bubble-turn";
     card.innerHTML = `
-        <div class="live-task-title">⚡ ${item.task}</div>
-        <div class="live-task-meta">
-            👤 Assignee: <strong>${item.assignee || 'Unknown'}</strong> · 📅 Deadline: <strong>${item.deadline || 'Pending'}</strong>
+        <div class="live-bubble-meta">
+            <span class="spk-name-tag" style="color: #818cf8;">${msg.speaker}</span>
+            <span class="turn-timestamp">${msg.start.toFixed(1)}s - ${msg.end.toFixed(1)}s</span>
+        </div>
+        <div class="turn-speech-text">${msg.text}</div>
+    `;
+    feed.appendChild(card);
+    feed.scrollTop = feed.scrollHeight;
+
+    const countElem = document.getElementById("rec-dialogue-count");
+    countElem.textContent = `${feed.children.length} turns`;
+}
+
+function appendLiveAction(item) {
+    const feed = document.getElementById("live-action-feed");
+    const empty = feed.querySelector(".empty-feed-hint");
+    if (empty) empty.remove();
+
+    const card = document.createElement("div");
+    card.className = "live-action-card-mini";
+    card.innerHTML = `
+        <div class="action-card-task">⚡ ${item.task}</div>
+        <div class="action-card-meta">
+            👤 <strong>${item.assignee || 'Unassigned'}</strong> · 📅 <strong>${item.deadline || 'Pending'}</strong>
         </div>
     `;
     feed.appendChild(card);
     feed.scrollTop = feed.scrollHeight;
+
+    const countElem = document.getElementById("rec-action-count");
+    countElem.textContent = `${feed.children.length} tasks`;
 }
 
+// ── 4. IMPORT AUDIO RECORDING ───────────────────────────────────
 
-// ── 2. FILE UPLOAD & BATCH PROCESSING ───────────────────────────
+function initDropZone() {
+    const dropZone = document.getElementById("file-drop-zone");
+    const fileInput = document.getElementById("audio-file-input");
 
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-const fileInfo = document.getElementById('file-info');
-const fileName = document.getElementById('file-name');
-const fileSize = document.getElementById('file-size');
-const processBtn = document.getElementById('process-btn');
-let selectedFile = null;
+    dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        if (e.dataTransfer.files.length) handleSelectedFile(e.dataTransfer.files[0]);
+    });
 
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+    fileInput.addEventListener("change", () => {
+        if (fileInput.files.length) handleSelectedFile(fileInput.files[0]);
+    });
+}
 
-function handleFile(file) {
-    // Proactively trigger and wake up models on audio import
-    fetch('/api/trigger-models', { method: 'POST' }).catch(() => {});
+function handleSelectedFile(file) {
+    // Auto-warm models on audio select
+    fetch("/api/trigger-models", { method: "POST" }).catch(() => {});
 
     selectedFile = file;
-    fileName.textContent = file.name;
-    fileSize.textContent = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-    fileInfo.classList.remove('hidden');
-    processBtn.disabled = false;
+    const ext = file.name.split('.').pop().toUpperCase();
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+
+    document.getElementById("preview-file-ext").textContent = ext;
+    document.getElementById("preview-file-name").textContent = file.name;
+    document.getElementById("preview-file-size").textContent = `${sizeMb} MB`;
+    document.getElementById("file-selected-card").classList.remove("hidden");
 }
 
-processBtn.addEventListener('click', async () => {
+async function executeFileProcessing() {
     if (!selectedFile) return;
-    processBtn.disabled = true;
-    processBtn.textContent = '⏳ Uploading...';
+
+    const btn = document.getElementById("btn-process-file");
+    btn.disabled = true;
+    btn.textContent = "⏳ Uploading to Local Pipeline...";
+
+    const minSpk = parseInt(document.getElementById("input-min-speakers").value) || 2;
+    const maxSpk = parseInt(document.getElementById("input-max-speakers").value) || 10;
 
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append("file", selectedFile);
 
     try {
-        const uploadRes = await fetch(`${API}/api/upload`, { method: 'POST', body: formData });
+        // 1. Upload audio
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+        if (!uploadRes.ok) throw new Error("File upload failed");
         const uploadData = await uploadRes.json();
         const meetingId = uploadData.meeting_id;
 
-        document.getElementById('upload-section').classList.add('hidden');
-        document.getElementById('progress-section').classList.remove('hidden');
-        document.getElementById('results-section').classList.add('hidden');
+        // Show Stepper
+        document.getElementById("pipeline-stepper").classList.remove("hidden");
+        connectProcessingWebSocket(meetingId);
 
-        // Connect status WebSocket
-        const ws = new WebSocket(`ws://${location.host}/ws/${meetingId}`);
-        ws.onmessage = (event) => {
-            const status = JSON.parse(event.data);
-            updateStage(status);
-            if (status.stage === 'complete') {
-                setTimeout(async () => {
-                    const res = await fetch(`${API}/api/meetings/${meetingId}`);
-                    const data = await res.json();
-                    document.getElementById('progress-section').classList.add('hidden');
-                    renderResults(data);
-                    document.getElementById('results-section').classList.remove('hidden');
-                    loadHistory();
-                }, 500);
-            }
-        };
-
-        const minSpk = document.getElementById('min-speakers').value;
-        const maxSpk = document.getElementById('max-speakers').value;
-        await fetch(`${API}/api/process/${meetingId}?min_speakers=${minSpk}&max_speakers=${maxSpk}`, { method: 'POST' });
+        // 2. Start pipeline processing
+        await fetch(`/api/process/${meetingId}?min_speakers=${minSpk}&max_speakers=${maxSpk}`, {
+            method: "POST"
+        });
 
     } catch (err) {
-        alert("Upload error: " + err.message);
-        processBtn.disabled = false;
-        processBtn.textContent = '🚀 Process File';
+        alert("Processing error: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "🚀 Process with Manent Pipeline";
     }
-});
+}
 
-function updateStage(status) {
-    const stageEl = document.getElementById(`stage-${status.stage}`);
-    if (!stageEl) return;
+function connectProcessingWebSocket(meetingId) {
+    const ws = new WebSocket(`ws://${location.host}/ws/meeting/${meetingId}`);
+    
+    ws.onmessage = (event) => {
+        const status = JSON.parse(event.data);
+        updateStepperStage(status.stage, status.progress, status.message);
 
-    const stages = ['preprocess', 'transcription', 'diarization', 'alignment', 'intelligence', 'saving'];
-    const idx = stages.indexOf(status.stage);
-    for (let i = 0; i < idx; i++) {
-        const prev = document.getElementById(`stage-${stages[i]}`);
-        if (prev) {
-            prev.classList.add('done');
-            prev.querySelector('.stage-fill').style.width = '100%';
+        if (status.stage === "complete") {
+            setTimeout(async () => {
+                ws.close();
+                await loadMeetings();
+                openMeetingInStudio(meetingId);
+            }, 1000);
+        } else if (status.stage === "error") {
+            alert("Pipeline error: " + status.error);
         }
-    }
-
-    stageEl.classList.add('active');
-    stageEl.querySelector('.stage-status').textContent = status.message;
-    stageEl.querySelector('.stage-fill').style.width = (status.progress * 100) + '%';
-
-    if (status.progress >= 1.0) {
-        stageEl.classList.remove('active');
-        stageEl.classList.add('done');
-    }
+    };
 }
 
+function updateStepperStage(stage, progress, message) {
+    document.getElementById("stepper-msg").textContent = message;
+    const stages = ["preprocess", "transcription", "diarization", "alignment", "intelligence"];
+    
+    stages.forEach(st => {
+        const card = document.getElementById(`step-${st}`);
+        if (!card) return;
+        const statusElem = card.querySelector(".step-status");
 
-// ── 3. RENDER MEETING REPORT ────────────────────────────────────
-
-function renderResults(data) {
-    document.getElementById('result-summary').textContent = data.summary || 'Summary unavailable.';
-
-    // Speakers
-    const spkEl = document.getElementById('result-speakers');
-    spkEl.innerHTML = '';
-    (data.speakers || []).forEach((s, idx) => {
-        const tag = document.createElement('span');
-        tag.className = `speaker-tag speaker-tag-${idx % 5}`;
-        tag.textContent = s;
-        spkEl.appendChild(tag);
-    });
-
-    // Action Items
-    const actEl = document.getElementById('result-actions');
-    actEl.innerHTML = '';
-    const items = data.action_items || [];
-    if (!items.length) {
-        actEl.innerHTML = '<p class="small">No explicit action items detected.</p>';
-    } else {
-        items.forEach(a => {
-            const card = document.createElement('div');
-            card.className = 'action-item';
-            card.innerHTML = `
-                <div class="task">${a.task}</div>
-                <div class="meta">
-                    👤 <strong>${a.assignee || 'Unassigned'}</strong> · 📅 Deadline: <strong>${a.deadline || 'None'}</strong>
-                </div>
-                ${a.evidence ? `<div class="evidence">"${a.evidence}"</div>` : ''}
-            `;
-            actEl.appendChild(card);
-        });
-    }
-
-    // Decisions
-    const decEl = document.getElementById('result-decisions');
-    decEl.innerHTML = '';
-    const decisions = data.decisions || [];
-    if (!decisions.length) {
-        decEl.innerHTML = '<p class="small">No formal decisions recorded.</p>';
-    } else {
-        decisions.forEach(d => {
-            const card = document.createElement('div');
-            card.className = 'decision-item';
-            card.textContent = `${d.speaker_id ? d.speaker_id + ': ' : ''}${d.decision}`;
-            decEl.appendChild(card);
-        });
-    }
-
-    // Unresolved
-    const unrEl = document.getElementById('result-unresolved');
-    unrEl.innerHTML = '';
-    (data.unresolved || data.unresolved_issues || []).forEach(u => {
-        const li = document.createElement('li');
-        li.textContent = u;
-        unrEl.appendChild(li);
-    });
-
-    // Important
-    const impEl = document.getElementById('result-important');
-    impEl.innerHTML = '';
-    (data.important || data.important_points || []).forEach(p => {
-        const li = document.createElement('li');
-        li.textContent = p;
-        impEl.appendChild(li);
-    });
-
-    // Transcript
-    const trEl = document.getElementById('result-transcript');
-    trEl.innerHTML = '';
-    (data.transcript || data.aligned_transcript || []).forEach(seg => {
-        const row = document.createElement('div');
-        row.className = 'transcript-line';
-        const startM = Math.floor(seg.start / 60);
-        const startS = Math.floor(seg.start % 60);
-        const endM = Math.floor(seg.end / 60);
-        const endS = Math.floor(seg.end % 60);
-        row.innerHTML = `
-            <span class="timestamp">[${pad(startM)}:${pad(startS)} - ${pad(endM)}:${pad(endS)}]</span>
-            <strong class="speaker-${seg.speaker_id || seg.speaker}">${seg.speaker_id || seg.speaker}:</strong> ${seg.text}
-        `;
-        trEl.appendChild(row);
+        if (st === stage) {
+            card.className = "step-card active";
+            statusElem.textContent = `${Math.round(progress * 100)}% Running...`;
+        } else if (stages.indexOf(st) < stages.indexOf(stage)) {
+            card.className = "step-card completed";
+            statusElem.textContent = "✓ Completed";
+        }
     });
 }
 
-function pad(n) { return String(n).padStart(2, '0'); }
+// ── 5. MINUTES STUDIO (INSPECTION & REVIEW) ────────────────────
 
-function toggleTranscript() {
-    document.getElementById('result-transcript').classList.toggle('hidden');
-}
-
-
-// ── 4. HISTORY ──────────────────────────────────────────────────
-
-async function loadHistory() {
+async function openMeetingInStudio(meetingId) {
     try {
-        const res = await fetch(`${API}/api/meetings`);
-        const list = await res.json();
-        const listEl = document.getElementById('meeting-list');
-        listEl.innerHTML = '';
+        const res = await fetch(`/api/meetings/${meetingId}`);
+        if (!res.ok) throw new Error("Failed to load meeting details");
+        currentMeeting = await res.json();
 
-        if (!list.length) {
-            listEl.innerHTML = '<p class="small">No meetings saved yet.</p>';
-            return;
-        }
-
-        list.forEach(m => {
-            const div = document.createElement('div');
-            div.className = 'meeting-history-item';
-            const duration = m.duration_sec ? ` · ${(m.duration_sec / 60).toFixed(1)} min` : '';
-            div.innerHTML = `
-                <div>
-                    <div style="font-weight:700">${m.filename || m.meeting_id}</div>
-                    <div class="small">${m.processed_at || ''}${duration}</div>
-                </div>
-                <span class="badge">${Array.isArray(m.speakers) ? m.speakers.length : 0} Speakers</span>
-            `;
-            div.onclick = async () => {
-                const r = await fetch(`${API}/api/meetings/${m.meeting_id}`);
-                const fullData = await r.json();
-                renderResults(fullData);
-                document.getElementById('results-section').classList.remove('hidden');
-                window.scrollTo({ top: document.getElementById('results-section').offsetTop, behavior: 'smooth' });
-            };
-            listEl.appendChild(div);
-        });
+        renderMeetingStudio(currentMeeting);
+        navigateTo("studio");
     } catch (e) {
-        console.error("History fetch error:", e);
+        console.error("Error opening meeting:", e);
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadHistory();
-});
+function renderMeetingStudio(meeting) {
+    document.getElementById("studio-empty-state").classList.add("hidden");
+    document.getElementById("studio-content-layout").classList.remove("hidden");
+
+    // Title & Meta
+    document.getElementById("studio-meeting-title").textContent = meeting.filename || `Meeting ${meeting.meeting_id}`;
+    const durMin = ((meeting.duration_sec || meeting.duration_seconds || 0) / 60).toFixed(1);
+    document.getElementById("studio-duration").textContent = `⏱️ ${durMin} mins`;
+    
+    const speakers = meeting.speakers || [];
+    document.getElementById("studio-speaker-count").textContent = `👥 ${speakers.length} Participants`;
+
+    // 1. Render Speaker Analytics Bars
+    renderSpeakerAnalytics(meeting.speaker_stats || []);
+
+    // 2. Render Minutes & Topics
+    document.getElementById("studio-summary-text").textContent = meeting.summary || "No summary available.";
+    const topicsContainer = document.getElementById("studio-topics-list");
+    topicsContainer.innerHTML = "";
+    const topics = meeting.key_topics || meeting.important_points || [];
+    if (topics.length > 0) {
+        topics.forEach(t => {
+            const pill = document.createElement("span");
+            pill.className = "topic-pill";
+            pill.textContent = t;
+            topicsContainer.appendChild(pill);
+        });
+        document.getElementById("studio-topics-card").classList.remove("hidden");
+    } else {
+        document.getElementById("studio-topics-card").classList.add("hidden");
+    }
+
+    // 3. Render ActionFlow Tasks
+    renderActionFlowGrid(meeting.action_items || []);
+
+    // 4. Render Decisions
+    renderDecisionsGrid(meeting.decisions || []);
+
+    // 5. Render Full Transcript
+    renderTranscriptStream(meeting.transcript || meeting.aligned_transcript || []);
+}
+
+function renderSpeakerAnalytics(stats) {
+    const container = document.getElementById("speaker-bars-container");
+    container.innerHTML = "";
+
+    if (!stats || stats.length === 0) {
+        container.innerHTML = `<div class="empty-feed-hint">Individual speaking times will appear after diarization.</div>`;
+        return;
+    }
+
+    stats.forEach((s, idx) => {
+        const color = getSpeakerColor(idx);
+        const card = document.createElement("div");
+        card.className = "speaker-bar-card";
+        card.innerHTML = `
+            <div class="spk-bar-header">
+                <span class="spk-bar-name" style="color: ${color.text}">${s.name}</span>
+                <span class="spk-bar-time">${s.formatted_time || s.total_seconds + 's'}</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" style="width: ${s.percentage}%; background-color: ${color.text}"></div>
+            </div>
+            <div class="spk-bar-meta">
+                <span>${s.percentage}% of conversation</span>
+                <span>${s.turn_count || 0} turns</span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderActionFlowGrid(actions) {
+    const container = document.getElementById("studio-actions-grid");
+    document.getElementById("studio-actions-count").textContent = actions.length;
+    container.innerHTML = "";
+
+    if (!actions || actions.length === 0) {
+        container.innerHTML = `<div class="empty-state-box">No action items detected in this meeting.</div>`;
+        return;
+    }
+
+    actions.forEach(a => {
+        const card = document.createElement("div");
+        card.className = "actionflow-card";
+        card.innerHTML = `
+            <div class="actionflow-top">
+                <span class="action-assignee-badge">👤 ${a.assignee || 'Unassigned'}</span>
+                <span class="action-deadline-badge">📅 ${a.deadline || 'Not specified'}</span>
+            </div>
+            <div class="actionflow-task">${a.task}</div>
+            ${a.evidence ? `<div class="actionflow-evidence">💬 "${a.evidence}"</div>` : ''}
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderDecisionsGrid(decisions) {
+    const container = document.getElementById("studio-decisions-grid");
+    document.getElementById("studio-decisions-count").textContent = decisions.length;
+    container.innerHTML = "";
+
+    if (!decisions || decisions.length === 0) {
+        container.innerHTML = `<div class="empty-state-box">No formal decisions recorded.</div>`;
+        return;
+    }
+
+    decisions.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "decision-card";
+        card.innerHTML = `
+            <span class="decision-badge-resolved">✓ ${d.status || 'RESOLVED'}</span>
+            <div class="decision-text">${d.decision}</div>
+            ${d.decided_by ? `<div class="decision-decided-by">Decided by: <strong>${d.decided_by}</strong></div>` : ''}
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderTranscriptStream(transcript) {
+    const container = document.getElementById("studio-transcript-stream");
+    document.getElementById("studio-turns-count").textContent = transcript.length;
+    container.innerHTML = "";
+
+    if (!transcript || transcript.length === 0) {
+        container.innerHTML = `<div class="empty-state-box">Transcript unavailable.</div>`;
+        return;
+    }
+
+    transcript.forEach((t, idx) => {
+        const card = document.createElement("div");
+        card.className = "transcript-turn-card";
+        const spkName = t.speaker_name || t.speaker || t.speaker_id || "Speaker";
+        const ts = t.timestamp_str || `${t.start?.toFixed(1) || 0}s - ${t.end?.toFixed(1) || 0}s`;
+
+        card.innerHTML = `
+            <div class="turn-header">
+                <span class="turn-speaker-badge" style="color: #818cf8;">${spkName}</span>
+                <span class="turn-timestamp">${ts}</span>
+            </div>
+            <div class="turn-text-body">${t.text}</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function filterTranscriptTurns() {
+    const query = document.getElementById("transcript-filter-input").value.toLowerCase();
+    document.querySelectorAll(".transcript-turn-card").forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(query) ? "block" : "none";
+    });
+}
+
+function switchStudioTab(tab) {
+    currentStudioTab = tab;
+    document.querySelectorAll(".studio-tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById(`tab-${tab}-btn`).classList.add("active");
+
+    document.querySelectorAll(".studio-pane").forEach(p => p.classList.remove("active"));
+    document.getElementById(`studio-pane-${tab}`).classList.add("active");
+}
+
+// ── 6. EXPORTING MINUTES ───────────────────────────────────────
+
+function exportMinutesMarkdown() {
+    if (!currentMeeting) return;
+    const m = currentMeeting;
+    let md = `# Meeting Minutes: ${m.filename}\n\n`;
+    md += `**Date:** ${m.processed_at || 'N/A'}\n`;
+    md += `**Duration:** ${((m.duration_sec || 0)/60).toFixed(1)} mins\n\n`;
+    md += `## Executive Summary\n${m.summary}\n\n`;
+
+    md += `## Speaker Participation\n`;
+    (m.speaker_stats || []).forEach(s => {
+        md += `- **${s.name}**: ${s.formatted_time} (${s.percentage}% of speech, ${s.turn_count} turns)\n`;
+    });
+    md += `\n`;
+
+    md += `## Key Decisions\n`;
+    (m.decisions || []).forEach(d => {
+        md += `- [${d.status || 'RESOLVED'}] ${d.decision} ${d.decided_by ? `(Decided by: ${d.decided_by})` : ''}\n`;
+    });
+    md += `\n`;
+
+    md += `## ActionFlow (Tasks Assigned)\n`;
+    (m.action_items || []).forEach(a => {
+        md += `- **[${a.assignee || 'Unassigned'}]** ${a.task} *(Deadline: ${a.deadline || 'None'})*\n`;
+        if (a.evidence) md += `  > "${a.evidence}"\n`;
+    });
+
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Manent_Minutes_${m.meeting_id}.md`;
+    a.click();
+}
+
+function exportMinutesJSON() {
+    if (!currentMeeting) return;
+    const jsonStr = JSON.stringify(currentMeeting, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Manent_${currentMeeting.meeting_id}.json`;
+    a.click();
+}

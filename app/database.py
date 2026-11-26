@@ -1,5 +1,5 @@
 """
-Database — SQLite storage for meeting intelligence results.
+Database — SQLite storage for Manent meeting intelligence results.
 """
 import json
 import os
@@ -15,7 +15,7 @@ def _get_conn():
 
 
 def init_db():
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist and run non-destructive migrations."""
     conn = _get_conn()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS meetings (
@@ -24,7 +24,9 @@ def init_db():
             duration_sec  REAL DEFAULT 0,
             processed_at  TEXT,
             speakers      TEXT DEFAULT '[]',
+            speaker_stats TEXT DEFAULT '[]',
             summary       TEXT DEFAULT '',
+            key_topics    TEXT DEFAULT '[]',
             decisions     TEXT DEFAULT '[]',
             action_items  TEXT DEFAULT '[]',
             unresolved    TEXT DEFAULT '[]',
@@ -36,26 +38,46 @@ def init_db():
         )
     """)
     conn.commit()
+
+    # Safe column migrations for existing databases
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(meetings)")
+    existing_cols = [c[1] for c in cursor.fetchall()]
+
+    if "speaker_stats" not in existing_cols:
+        cursor.execute("ALTER TABLE meetings ADD COLUMN speaker_stats TEXT DEFAULT '[]'")
+    if "key_topics" not in existing_cols:
+        cursor.execute("ALTER TABLE meetings ADD COLUMN key_topics TEXT DEFAULT '[]'")
+    conn.commit()
     conn.close()
-    print(f"[DB] Initialized at {DB_PATH}")
+
+
+# Ensure database and columns are initialized on module load
+try:
+    init_db()
+except Exception as e:
+    print(f"[DB] Init warning: {e}")
 
 
 def save_meeting(meeting: MeetingIntelligence, raw_whisper="", raw_diarize="", raw_llm=""):
     """Save or update a meeting result."""
+    init_db()
     conn = _get_conn()
     conn.execute("""
         INSERT OR REPLACE INTO meetings
-        (meeting_id, filename, duration_sec, processed_at, speakers, summary,
-         decisions, action_items, unresolved, important, transcript,
+        (meeting_id, filename, duration_sec, processed_at, speakers, speaker_stats,
+         summary, key_topics, decisions, action_items, unresolved, important, transcript,
          raw_whisper, raw_diarize, raw_llm)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         meeting.meeting_id,
         meeting.filename,
         meeting.duration_seconds,
         meeting.processed_at,
         json.dumps(meeting.speakers),
+        json.dumps([s.model_dump() for s in meeting.speaker_stats]),
         meeting.summary,
+        json.dumps(meeting.key_topics),
         json.dumps([d.model_dump() for d in meeting.decisions]),
         json.dumps([a.model_dump() for a in meeting.action_items]),
         json.dumps(meeting.unresolved_issues),
@@ -83,7 +105,8 @@ def list_meetings() -> list[dict]:
     """List all meetings (summary only)."""
     conn = _get_conn()
     rows = conn.execute(
-        "SELECT meeting_id, filename, duration_sec, processed_at, speakers, summary "
+        "SELECT meeting_id, filename, duration_sec, processed_at, speakers, speaker_stats, summary, "
+        "(SELECT count(*) FROM meetings) as total_count "
         "FROM meetings ORDER BY processed_at DESC"
     ).fetchall()
     conn.close()
@@ -92,7 +115,7 @@ def list_meetings() -> list[dict]:
 
 def _row_to_dict(row) -> dict:
     d = dict(row)
-    for key in ["speakers", "decisions", "action_items", "unresolved", "important", "transcript"]:
+    for key in ["speakers", "speaker_stats", "key_topics", "decisions", "action_items", "unresolved", "important", "transcript"]:
         if key in d and isinstance(d[key], str):
             try:
                 d[key] = json.loads(d[key])

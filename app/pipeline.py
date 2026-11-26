@@ -109,12 +109,13 @@ async def run_pipeline(
         speaker_mapping = intelligence.get("speaker_mapping", {})
         if speaker_mapping:
             aligned = alignment.apply_speaker_mapping(aligned, speaker_mapping)
-            final_speakers = [speaker_mapping.get(s, s) for s in raw_speakers]
-        else:
-            final_speakers = raw_speakers
+
+        # Calculate rich talk-time stats & minutes per speaker (Figma Manent spec)
+        speaker_stats = alignment.calculate_speaker_stats(aligned, speaker_mapping)
+        final_speakers = [s.name for s in speaker_stats]
 
         await _status("intelligence", 1.0,
-                       f"Intelligence extracted in {llm_time:.1f}s ({len(intelligence.get('action_items', []))} action items)")
+                       f"Intelligence extracted in {llm_time:.1f}s ({len(intelligence.get('action_items', []))} action items, {len(speaker_stats)} speakers profiled)")
 
         # ─── STAGE 6: Build Intelligence Object & Persist ──────
         await _status("saving", 0.0, "Saving to SQLite database & syncing...")
@@ -123,28 +124,34 @@ async def run_pipeline(
         decisions_list = []
         for d in intelligence.get("decisions", []):
             if isinstance(d, dict):
-                speaker_val = d.get("speaker") or d.get("speaker_id")
-                # Map speaker if known
+                speaker_val = d.get("speaker") or d.get("speaker_id") or d.get("decided_by")
                 if speaker_val in speaker_mapping:
                     speaker_val = speaker_mapping[speaker_val]
-                decisions_list.append(Decision(decision=d.get("decision", ""), speaker_id=speaker_val))
+                decisions_list.append(Decision(
+                    decision=d.get("decision", ""),
+                    status=d.get("status", "RESOLVED"),
+                    decided_by=speaker_val,
+                    timestamp=d.get("timestamp"),
+                    evidence=d.get("evidence")
+                ))
             elif isinstance(d, str):
                 decisions_list.append(Decision(decision=d))
 
-        # Parse action items
+        # Parse action items (ActionFlow)
         action_items_list = []
         for a in intelligence.get("action_items", []):
             if isinstance(a, dict):
-                assignee_val = a.get("assignee")
+                assignee_val = a.get("assignee") or a.get("owner")
                 if assignee_val in speaker_mapping:
                     assignee_val = speaker_mapping[assignee_val]
                 action_items_list.append(ActionItem(
                     task=a.get("task", ""),
-                    assignee=assignee_val,
-                    deadline=a.get("deadline"),
+                    assignee=assignee_val or "Unassigned",
+                    deadline=a.get("deadline") or "Not specified",
                     evidence=a.get("evidence"),
+                    timestamp=a.get("timestamp"),
                     commitment_type=a.get("type") or a.get("commitment_type"),
-                    status=a.get("status", "pending")
+                    status=a.get("status", "open")
                 ))
 
         result = MeetingIntelligence(
@@ -153,7 +160,9 @@ async def run_pipeline(
             duration_seconds=duration,
             processed_at=datetime.now().isoformat(),
             speakers=final_speakers,
+            speaker_stats=speaker_stats,
             summary=intelligence.get("summary", ""),
+            key_topics=intelligence.get("key_topics", intelligence.get("important_points", [])),
             decisions=decisions_list,
             action_items=action_items_list,
             unresolved_issues=intelligence.get("unresolved_issues", []),
