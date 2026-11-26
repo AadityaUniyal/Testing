@@ -13,7 +13,7 @@ from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect, H
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
-from app import config, database
+from app import config, database, model_manager
 from app.pipeline import run_pipeline
 from app.live_pipeline import LiveMeetingSession
 from app.models import PipelineStatus
@@ -34,13 +34,26 @@ _live_sessions: dict[str, LiveMeetingSession] = {}
 @app.on_event("startup")
 async def startup():
     database.init_db()
+    # Auto-activate models in background so they are ready on first use
+    asyncio.create_task(asyncio.to_thread(model_manager.ensure_llm_server))
     print("[Server] Meeting Intelligence ready at http://localhost:8000")
 
 
 @app.on_event("shutdown")
 async def shutdown():
-    llm_engine.stop_server()
+    model_manager.stop_llm_server()
     diarization_engine.unload_pipeline()
+
+
+@app.post("/api/trigger-models")
+async def trigger_models():
+    """
+    On-demand model activation trigger.
+    Triggered when user clicks Record button or drops an audio file.
+    Ensures all models (Whisper, Pyannote, Qwen) are activated and warm.
+    """
+    status = await asyncio.to_thread(model_manager.trigger_all_models)
+    return status
 
 
 # ── Frontend ──────────────────────────────────────────────────
@@ -114,6 +127,9 @@ async def upload_audio(file: UploadFile = File(...)):
 
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
+
+    # Trigger background model readiness
+    asyncio.create_task(asyncio.to_thread(model_manager.ensure_llm_server))
 
     return {
         "meeting_id": meeting_id,

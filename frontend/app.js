@@ -35,6 +35,9 @@ function switchTab(tab) {
 // ── 1. LIVE STREAMING MICROPHONE ENGINE ─────────────────────────
 
 async function startLiveMeeting() {
+    // Proactively trigger and wake up models on click
+    fetch('/api/trigger-models', { method: 'POST' }).catch(() => {});
+
     try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
             audio: {
@@ -255,6 +258,9 @@ dropZone.addEventListener('drop', (e) => {
 fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
 
 function handleFile(file) {
+    // Proactively trigger and wake up models on audio import
+    fetch('/api/trigger-models', { method: 'POST' }).catch(() => {});
+
     selectedFile = file;
     fileName.textContent = file.name;
     fileSize.textContent = (file.size / (1024 * 1024)).toFixed(1) + ' MB';

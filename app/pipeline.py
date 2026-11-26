@@ -15,7 +15,7 @@ import time
 import uuid
 from datetime import datetime
 
-from app import config, database, alignment, diarization_engine, llm_engine, whisper_engine, audio_utils
+from app import config, database, alignment, diarization_engine, llm_engine, whisper_engine, audio_utils, model_manager
 from app.models import (
     MeetingIntelligence, PipelineStatus,
     TranscriptSegment, SpeakerSegment, AlignedSegment,
@@ -43,6 +43,9 @@ async def run_pipeline(
             await on_status(s)
 
     try:
+        # Auto-activate LLM server in background if not already active
+        model_manager.ensure_llm_server(max_wait_sec=5.0)
+
         # ─── STAGE 1: Audio Preprocessing & Normalization ──────
         await _status("preprocess", 0.0, "Decoding and normalizing audio to 16kHz mono...")
         basename = os.path.splitext(os.path.basename(audio_path))[0]

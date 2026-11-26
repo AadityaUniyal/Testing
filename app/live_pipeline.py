@@ -16,7 +16,7 @@ import numpy as np
 import httpx
 from datetime import datetime
 
-from app import config, database, alignment, diarization_engine, llm_engine
+from app import config, database, alignment, diarization_engine, llm_engine, model_manager
 from app.models import AlignedSegment, ActionItem, Decision, MeetingIntelligence
 
 WHISPER_SERVER_URL = "http://127.0.0.1:8082/inference"
@@ -42,6 +42,12 @@ class LiveMeetingSession:
         self.sample_rate = 16000
         self.is_active = True
         self.current_offset = 0.0
+
+        # Auto-activate local model services if not already active
+        try:
+            model_manager.ensure_llm_server(max_wait_sec=5.0)
+        except Exception:
+            pass
 
     async def ingest_chunk(self, pcm_bytes: bytes):
         """Process incoming 16kHz mono 16-bit PCM chunk from browser."""
