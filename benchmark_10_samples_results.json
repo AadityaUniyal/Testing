@@ -1,0 +1,821 @@
+[
+  {
+    "sample_index": 1,
+    "variant": "Tech Architecture Sync (3 speakers)",
+    "meeting_id": "bench_var01_tech_apis_3spk",
+    "filename": "bench_01_tech_apis_3spk.mp3",
+    "duration_seconds": 238.6,
+    "total_processing_time_s": 374.3,
+    "rtf": 1.57,
+    "transcript_turn_count": 25,
+    "speakers_detected": [
+      "Will",
+      "Tom",
+      "Sameer"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "Will",
+        "total_seconds": 93.0,
+        "formatted_time": "1m 33s",
+        "percentage": 39.0,
+        "turn_count": 9
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Tom",
+        "total_seconds": 78.6,
+        "formatted_time": "1m 18s",
+        "percentage": 32.9,
+        "turn_count": 9
+      },
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Sameer",
+        "total_seconds": 67.0,
+        "formatted_time": "1m 07s",
+        "percentage": 28.1,
+        "turn_count": 7
+      }
+    ],
+    "summary": "The meeting discusses RingCentral's AI APIs for conversational intelligence, specifically focusing on speech-to-text, speaker diarization, and speaker identification. Speakers explain the technical capabilities and use cases for these APIs, including sentiment analysis and call tracking. The discussion concludes with a beta status and a call for feedback.",
+    "key_topics": [
+      "AI APIs for Conversational Intelligence",
+      "Speech-to-Text",
+      "Speaker Diarization"
+    ],
+    "action_items_count": 1,
+    "action_items": [
+      {
+        "task": "Discussing AI APIs for Conversational Intelligence",
+        "assignee": "Tom",
+        "deadline": "Immediate",
+        "evidence": "SPEAKER_00: 'Today, the topic is about RingCentral's AI APIs around conversational intelligence.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 1,
+    "decisions": [
+      {
+        "decision": "AI APIs for Conversational Intelligence",
+        "status": "RESOLVED",
+        "decided_by": "Tom",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 2,
+    "variant": "Conference Room Acoustic Benchmark",
+    "meeting_id": "bench_var02_pyannote_room",
+    "filename": "bench_02_pyannote_eval_room.wav",
+    "duration_seconds": 30.0,
+    "total_processing_time_s": 57.2,
+    "rtf": 1.91,
+    "transcript_turn_count": 4,
+    "speakers_detected": [
+      "SPEAKER_01",
+      "SPEAKER_00"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "SPEAKER_01",
+        "total_seconds": 17.7,
+        "formatted_time": "17s",
+        "percentage": 59.1,
+        "turn_count": 3
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "SPEAKER_00",
+        "total_seconds": 12.3,
+        "formatted_time": "12s",
+        "percentage": 40.9,
+        "turn_count": 1
+      }
+    ],
+    "summary": "Meeting discussion transcribed successfully.",
+    "key_topics": [],
+    "action_items_count": 0,
+    "action_items": [],
+    "decisions_count": 0,
+    "decisions": [],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 3,
+    "variant": "Daily Standup / Rapid Check-in (3 speakers)",
+    "meeting_id": "bench_var03_daily_standup_3spk",
+    "filename": "bench_03_daily_standup_3spk.wav",
+    "duration_seconds": 53.8,
+    "total_processing_time_s": 67.1,
+    "rtf": 1.25,
+    "transcript_turn_count": 7,
+    "speakers_detected": [
+      "Alex",
+      "Priya",
+      "Sarah"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Alex",
+        "total_seconds": 25.5,
+        "formatted_time": "25s",
+        "percentage": 53.0,
+        "turn_count": 4
+      },
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "Priya",
+        "total_seconds": 16.0,
+        "formatted_time": "16s",
+        "percentage": 33.3,
+        "turn_count": 2
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Sarah",
+        "total_seconds": 6.6,
+        "formatted_time": "6s",
+        "percentage": 13.7,
+        "turn_count": 1
+      }
+    ],
+    "summary": "Team meeting to review auth service, OAuth callback bug, and end-to-end testing. Decided to code freeze by 4 p.m. today.",
+    "key_topics": [
+      "OAuth Callback Bug",
+      "End-to-End Testing",
+      "Code Freeze"
+    ],
+    "action_items_count": 1,
+    "action_items": [
+      {
+        "task": "Review Priya's PR before lunch",
+        "assignee": "Alex",
+        "deadline": "Before lunch",
+        "evidence": "SPEAKER_01: 'before lunch. Let's aim for a code freeze by 4 p.m. today. Will do. I'll review it right after stand-up.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 1,
+    "decisions": [
+      {
+        "decision": "Code Freeze by 4 p.m.",
+        "status": "RESOLVED",
+        "decided_by": "Alex",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 4,
+    "variant": "Cross-Functional Sprint Planning (4 speakers)",
+    "meeting_id": "bench_var04_sprint_planning_4spk",
+    "filename": "bench_04_sprint_planning_4spk.wav",
+    "duration_seconds": 62.7,
+    "total_processing_time_s": 79.0,
+    "rtf": 1.26,
+    "transcript_turn_count": 16,
+    "speakers_detected": [
+      "Chloe",
+      "Marcus",
+      "Elena",
+      "David"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "Chloe",
+        "total_seconds": 13.5,
+        "formatted_time": "13s",
+        "percentage": 29.7,
+        "turn_count": 5
+      },
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Marcus",
+        "total_seconds": 13.4,
+        "formatted_time": "13s",
+        "percentage": 29.3,
+        "turn_count": 5
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Elena",
+        "total_seconds": 10.2,
+        "formatted_time": "10s",
+        "percentage": 22.4,
+        "turn_count": 4
+      },
+      {
+        "speaker_id": "SPEAKER_03",
+        "name": "David",
+        "total_seconds": 8.5,
+        "formatted_time": "8s",
+        "percentage": 18.6,
+        "turn_count": 2
+      }
+    ],
+    "summary": "Sprint 42 Planning session focused on high-priority architecture items. Key discussions include migrating the database connection pool to Supabase Postgres, planning schema migration timelines, and integrating new WebSocket endpoints for real-time transcription streaming. Decisions include assigning post-REST migration ownership to Marcus, starting WebSocket hook integration for Chloe, and setting a sub-second latency goal for the audio pipeline.",
+    "key_topics": [
+      "Database Migration",
+      "WebSocket Integration",
+      "Sprint Goal & Timeline"
+    ],
+    "action_items_count": 2,
+    "action_items": [
+      {
+        "task": "Write migration script and test foreign key constraints on staging",
+        "assignee": "Elena",
+        "deadline": "Wednesday",
+        "evidence": "SPEAKER_00: I'll need to write the migration script and test foreign key constraints on staging.",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      },
+      {
+        "task": "Align UI components by Thursday morning",
+        "assignee": "David",
+        "deadline": "Thursday morning",
+        "evidence": "SPEAKER_03: I'll align the UI components by Thursday morning.",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 3,
+    "decisions": [
+      {
+        "decision": "Post-REST migration ownership assigned to Marcus",
+        "status": "RESOLVED",
+        "decided_by": "Chloe",
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "WebSocket hook integration started by Chloe",
+        "status": "RESOLVED",
+        "decided_by": "Chloe",
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "Initial PR for audio pipeline up by Wednesday",
+        "status": "RESOLVED",
+        "decided_by": "Elena",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 5,
+    "variant": "Action-Item Heavy Delivery Sync (4 speakers)",
+    "meeting_id": "bench_var05_action_heavy_ops_4spk",
+    "filename": "bench_05_action_heavy_ops_4spk.wav",
+    "duration_seconds": 54.9,
+    "total_processing_time_s": 71.1,
+    "rtf": 1.29,
+    "transcript_turn_count": 15,
+    "speakers_detected": [
+      "Liam",
+      "Jordan",
+      "Sarah",
+      "Rachel"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "Liam",
+        "total_seconds": 16.0,
+        "formatted_time": "15s",
+        "percentage": 37.8,
+        "turn_count": 5
+      },
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Jordan",
+        "total_seconds": 11.1,
+        "formatted_time": "11s",
+        "percentage": 26.4,
+        "turn_count": 5
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Sarah",
+        "total_seconds": 7.7,
+        "formatted_time": "7s",
+        "percentage": 18.3,
+        "turn_count": 2
+      },
+      {
+        "speaker_id": "SPEAKER_03",
+        "name": "Rachel",
+        "total_seconds": 7.4,
+        "formatted_time": "7s",
+        "percentage": 17.5,
+        "turn_count": 3
+      }
+    ],
+    "summary": "Team members are discussing critical deliverables for the Friday Enterprise Client Demo, including security compliance, cloud infrastructure, and stakeholder approvals. Key actions involve locking down cloud roles, finalizing AWS/Supabase policies, and completing SOC2 audit for customer audio retention.",
+    "key_topics": [
+      "Security Compliance & SOC2 Audit",
+      "Cloud Infrastructure & IAM Roles",
+      "Staging Environment Freeze",
+      "Deliverables & Deadline"
+    ],
+    "action_items_count": 4,
+    "action_items": [
+      {
+        "task": "Lock down cloud IAM roles for client deployment",
+        "assignee": "Liam",
+        "deadline": "Immediate",
+        "evidence": "SPEAKER_03: 'Jordan, I need Liam to ensure Cloud IM roles are locked down.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "in_progress"
+      },
+      {
+        "task": "Finalize AWS/Supabase IM policies by tomorrow noon",
+        "assignee": "Jordan",
+        "deadline": "November 27th",
+        "evidence": "SPEAKER_01: 'I will finalize the AWS and Supabase IM policies by tomorrow noon, November 27th.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "in_progress"
+      },
+      {
+        "task": "Freeze staging environment at 6 p.m. tomorrow",
+        "assignee": "Liam",
+        "deadline": "Tomorrow",
+        "evidence": "SPEAKER_02: 'Rachel, please freeze the staging environment tomorrow at 6 p.m.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "in_progress"
+      },
+      {
+        "task": "Submit SOC2 audit report by Friday at 5 p.m.",
+        "assignee": "Sarah",
+        "deadline": "Friday",
+        "evidence": "SPEAKER_00: 'I will submit the report by Friday at 5 p.m.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "in_progress"
+      }
+    ],
+    "decisions_count": 3,
+    "decisions": [
+      {
+        "decision": "Cloud IAM roles locked down by Liam",
+        "status": "RESOLVED",
+        "decided_by": "Liam",
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "AWS/Supabase policies finalized by tomorrow noon",
+        "status": "RESOLVED",
+        "decided_by": "Jordan",
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "SOC2 audit report submitted by Friday at 5 p.m.",
+        "status": "RESOLVED",
+        "decided_by": "Sarah",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 6,
+    "variant": "Strategic Architecture Debate (3 speakers)",
+    "meeting_id": "bench_var06_strategic_decisions_3spk",
+    "filename": "bench_06_strategic_decisions_3spk.wav",
+    "duration_seconds": 56.4,
+    "total_processing_time_s": 70.7,
+    "rtf": 1.25,
+    "transcript_turn_count": 10,
+    "speakers_detected": [
+      "Speaker 00",
+      "Speaker 01",
+      "SPEAKER_02"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Speaker 00",
+        "total_seconds": 18.8,
+        "formatted_time": "18s",
+        "percentage": 39.9,
+        "turn_count": 4
+      },
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Speaker 01",
+        "total_seconds": 17.1,
+        "formatted_time": "17s",
+        "percentage": 36.3,
+        "turn_count": 4
+      },
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "SPEAKER_02",
+        "total_seconds": 11.2,
+        "formatted_time": "11s",
+        "percentage": 23.7,
+        "turn_count": 2
+      }
+    ],
+    "summary": "The team decided to use Supabase as the primary cloud database for their intelligence backend, with a local SQLite fallback. DynamoDB and Raw Posters were evaluated for performance and scalability, with the consensus shifting to Supabase due to its managed features and REST API overport 443. The GraphQL layer was deferred to the next quarter.",
+    "key_topics": [
+      "Intelligence Backend Architecture",
+      "Database Selection (DynamoDB vs. Supabase)",
+      "GraphQL Layer Strategy"
+    ],
+    "action_items_count": 2,
+    "action_items": [
+      {
+        "task": "Finalize Supabase as primary database",
+        "assignee": "Speaker 00",
+        "deadline": "Immediate",
+        "evidence": "Speaker 00 confirmed Supabase is primary, with local SQLite fallback",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      },
+      {
+        "task": "Deferral of GraphQL layer",
+        "assignee": "Speaker 01",
+        "deadline": "Next Quarter",
+        "evidence": "Speaker 01 stated GraphQL will be deferred to next quarter",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 2,
+    "decisions": [
+      {
+        "decision": "Supabase as primary cloud database",
+        "status": "RESOLVED",
+        "decided_by": "Speaker 00",
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "GraphQL layer deferred to next quarter",
+        "status": "RESOLVED",
+        "decided_by": "Speaker 01",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 7,
+    "variant": "Multi-Accent International Sync (3 speakers)",
+    "meeting_id": "bench_var07_international_accents_3spk",
+    "filename": "bench_07_international_accents_3spk.wav",
+    "duration_seconds": 53.3,
+    "total_processing_time_s": 66.3,
+    "rtf": 1.24,
+    "transcript_turn_count": 8,
+    "speakers_detected": [
+      "Arav",
+      "Jennifer",
+      "Oliver"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Arav",
+        "total_seconds": 18.8,
+        "formatted_time": "18s",
+        "percentage": 39.3,
+        "turn_count": 3
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Jennifer",
+        "total_seconds": 16.3,
+        "formatted_time": "16s",
+        "percentage": 34.1,
+        "turn_count": 3
+      },
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "Oliver",
+        "total_seconds": 12.7,
+        "formatted_time": "12s",
+        "percentage": 26.5,
+        "turn_count": 2
+      }
+    ],
+    "summary": "The meeting discusses cross-region network performance, specifically focusing on latency spikes from London and Frankfurt. Speakers identified Mumbai data center connectivity issues and proposed routing through Dublin. A ping diagnostic was scheduled to compare transit times between Mumbai and Dublin. The discussion concludes with a decision to route traffic through Dublin if Frankfurt is experiencing routing issues.",
+    "key_topics": [
+      "Cross-region network performance",
+      "Latency analysis",
+      "Routing optimization"
+    ],
+    "action_items_count": 1,
+    "action_items": [
+      {
+        "task": "Ping diagnostics from Mumbai to Dublin",
+        "assignee": "Arav",
+        "deadline": "End of day today",
+        "evidence": "SPEAKER_01: 'I will set up the automated ping scripts and share the latency matrix by end of day today.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 1,
+    "decisions": [
+      {
+        "decision": "Routing through Dublin",
+        "status": "RESOLVED",
+        "decided_by": "Arav",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 8,
+    "variant": "High-Overlap UX Brainstorming (3 speakers)",
+    "meeting_id": "bench_var08_rapid_overlap_ux_3spk",
+    "filename": "bench_08_rapid_overlap_ux_3spk.wav",
+    "duration_seconds": 42.6,
+    "total_processing_time_s": 51.4,
+    "rtf": 1.21,
+    "transcript_turn_count": 10,
+    "speakers_detected": [
+      "Speaker 00",
+      "Speaker 02",
+      "Speaker 01"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Speaker 00",
+        "total_seconds": 15.9,
+        "formatted_time": "15s",
+        "percentage": 51.6,
+        "turn_count": 5
+      },
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "Speaker 02",
+        "total_seconds": 10.0,
+        "formatted_time": "9s",
+        "percentage": 32.3,
+        "turn_count": 3
+      },
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Speaker 01",
+        "total_seconds": 4.9,
+        "formatted_time": "4s",
+        "percentage": 16.0,
+        "turn_count": 2
+      }
+    ],
+    "summary": "Discussion focused on mobile onboarding flow, specifically the microphone permission pop-up. Speaker 00 identified that users drop off at step 3 and the microphone pop-up appears before explaining the need. Speaker 01 noted the pop-up appears before explaining the need. Speaker 00 agreed that explaining live transcription benefits first would increase conversion. Speaker 02 proposed updating onboarding screens to show a visual wave animation before requesting mic access to make it engaging. Speaker 00 agreed to push the change today for A-B testing tomorrow.",
+    "key_topics": [
+      "Mobile Onboarding Flow",
+      "Microphone Permission Pop-up",
+      "Engaging Onboarding Screens"
+    ],
+    "action_items_count": 1,
+    "action_items": [
+      {
+        "task": "Update onboarding screens to show visual wave animation before requesting mic access",
+        "assignee": "Speaker 02",
+        "deadline": "Today",
+        "evidence": "Quote: 'I can update the onboarding screens to show a visual wave animation before requesting mic access.'",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 1,
+    "decisions": [
+      {
+        "decision": "Update onboarding screens to show visual wave animation before requesting mic access",
+        "status": "RESOLVED",
+        "decided_by": "Speaker 02",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 9,
+    "variant": "1-on-1 Executive Consultation (2 speakers)",
+    "meeting_id": "bench_var09_consultation_1on1_2spk",
+    "filename": "bench_09_consultation_1on1_2spk.wav",
+    "duration_seconds": 55.1,
+    "total_processing_time_s": 48.1,
+    "rtf": 0.87,
+    "transcript_turn_count": 8,
+    "speakers_detected": [
+      "Dr. Aris",
+      "Dr. Aris"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "Dr. Aris",
+        "total_seconds": 32.3,
+        "formatted_time": "32s",
+        "percentage": 64.1,
+        "turn_count": 5
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "Dr. Aris",
+        "total_seconds": 18.1,
+        "formatted_time": "18s",
+        "percentage": 35.9,
+        "turn_count": 3
+      }
+    ],
+    "summary": "Dr. Aris discusses the feasibility of deploying Whisper Turbo and Pyano on-premise for HIPAA compliance. He confirms that Whisper Turbo and Pyano run entirely on local GPU, Quen runs via local LAMA server, and all audio/transcripts are encrypted locally. Performance is confirmed to meet SLA (under 2 minutes for 30-minute consultation).",
+    "key_topics": [
+      "HIPAA compliance",
+      "On-premise deployment",
+      "Whisper Turbo performance"
+    ],
+    "action_items_count": 1,
+    "action_items": [
+      {
+        "task": "On-premise pilot deployment scheduled for next week",
+        "assignee": "Dr. Aris",
+        "deadline": "Next week",
+        "evidence": "Dr. Aris confirms Whisper Turbo and Pyano run entirely on local GPU, Quen via local LAMA server, and all audio/transcripts are encrypted locally.",
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 1,
+    "decisions": [
+      {
+        "decision": "On-premise pilot deployment confirmed",
+        "status": "RESOLVED",
+        "decided_by": "Dr. Aris",
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  },
+  {
+    "sample_index": 10,
+    "variant": "Incident Post-Mortem & Sprint Retrospective (4 speakers)",
+    "meeting_id": "bench_var10_postmortem_retro_4spk",
+    "filename": "bench_10_postmortem_retro_4spk.wav",
+    "duration_seconds": 56.1,
+    "total_processing_time_s": 60.4,
+    "rtf": 1.08,
+    "transcript_turn_count": 12,
+    "speakers_detected": [
+      "SPEAKER_02",
+      "SPEAKER_01",
+      "SPEAKER_00",
+      "SPEAKER_03"
+    ],
+    "speaker_stats": [
+      {
+        "speaker_id": "SPEAKER_02",
+        "name": "SPEAKER_02",
+        "total_seconds": 21.3,
+        "formatted_time": "21s",
+        "percentage": 44.6,
+        "turn_count": 5
+      },
+      {
+        "speaker_id": "SPEAKER_01",
+        "name": "SPEAKER_01",
+        "total_seconds": 11.7,
+        "formatted_time": "11s",
+        "percentage": 24.5,
+        "turn_count": 2
+      },
+      {
+        "speaker_id": "SPEAKER_00",
+        "name": "SPEAKER_00",
+        "total_seconds": 8.7,
+        "formatted_time": "8s",
+        "percentage": 18.2,
+        "turn_count": 3
+      },
+      {
+        "speaker_id": "SPEAKER_03",
+        "name": "SPEAKER_03",
+        "total_seconds": 6.0,
+        "formatted_time": "6s",
+        "percentage": 12.7,
+        "turn_count": 2
+      }
+    ],
+    "summary": "The meeting focused on the API gateway outage, identified the root cause as database connection pool exhaustion, deployed a hotfix, and set up preventative action items.",
+    "key_topics": [
+      "API Gateway Outage",
+      "Database Connection Pool Exhaustion",
+      "Hotfix",
+      "Preventative Action Items",
+      "Enterprise Load"
+    ],
+    "action_items_count": 3,
+    "action_items": [
+      {
+        "task": "Implement strict connection timeout limits and health checks by Thursday",
+        "assignee": "Unassigned",
+        "deadline": "Not specified",
+        "evidence": null,
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      },
+      {
+        "task": "Configure automated alerts in Graphana for pool saturation above 80%",
+        "assignee": "Unassigned",
+        "deadline": "Not specified",
+        "evidence": null,
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      },
+      {
+        "task": "Document the incident in the Incident Postmortem Repository",
+        "assignee": "Unassigned",
+        "deadline": "Not specified",
+        "evidence": null,
+        "timestamp": null,
+        "commitment_type": null,
+        "status": "open"
+      }
+    ],
+    "decisions_count": 4,
+    "decisions": [
+      {
+        "decision": "Approved hotfix with automatic connection pooling",
+        "status": "RESOLVED",
+        "decided_by": null,
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "Implement strict connection timeout limits and health checks by Thursday",
+        "status": "RESOLVED",
+        "decided_by": null,
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "Configure automated alerts in Graphana for pool saturation above 80%",
+        "status": "RESOLVED",
+        "decided_by": null,
+        "timestamp": null,
+        "evidence": null
+      },
+      {
+        "decision": "Document the incident in the Incident Postmortem Repository",
+        "status": "RESOLVED",
+        "decided_by": null,
+        "timestamp": null,
+        "evidence": null
+      }
+    ],
+    "sqlite_persisted": true,
+    "supabase_synced": true
+  }
+]

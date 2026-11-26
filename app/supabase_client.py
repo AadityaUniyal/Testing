@@ -13,6 +13,22 @@ from typing import Optional, Dict, Any, Union
 import urllib.request
 import urllib.error
 
+# Load .env if present
+try:
+    from pathlib import Path
+    env_file = Path(__file__).resolve().parent.parent / ".env"
+    if env_file.exists():
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k not in os.environ:
+                        os.environ[k] = v
+except Exception:
+    pass
+
 logger = logging.getLogger("meeting_intelligence.supabase")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
@@ -89,30 +105,50 @@ def sync_meeting_to_supabase(meeting_dict: Dict[str, Any]) -> bool:
         "duration_seconds": float(meeting_dict.get("duration_seconds", meeting_dict.get("duration", 0.0)) or 0.0),
         "created_at": meeting_dict.get("processed_at") or meeting_dict.get("created_at"),
         "summary": meeting_dict.get("summary", ""),
+        "speaker_stats": meeting_dict.get("speaker_stats", []),
+        "key_topics": meeting_dict.get("key_topics", []),
+        "unresolved_issues": meeting_dict.get("unresolved_issues", []),
+        "important_points": meeting_dict.get("important_points", []),
         "raw_response": meeting_dict
     }]
     _post_rest("meetings", meeting_row, on_conflict="meeting_id")
 
-    # 2. Sync Speakers
+    # 2. Sync Speakers with stats
     speakers_data = []
-    # Can be a list of speaker names or dict mapping
+    # Build lookup map for speaker stats
+    stats_map = {}
+    for st in meeting_dict.get("speaker_stats", []):
+        if isinstance(st, dict):
+            spk_name = st.get("speaker_name") or st.get("speaker")
+            if spk_name:
+                stats_map[spk_name] = st
+
     speaker_map = meeting_dict.get("speaker_map")
     if speaker_map and isinstance(speaker_map, dict):
         for spk_id, name in speaker_map.items():
+            st = stats_map.get(name, {})
             speakers_data.append({
                 "meeting_id": meeting_id,
                 "speaker_id": spk_id,
                 "display_name": name,
-                "confidence": 1.0
+                "confidence": 1.0,
+                "talk_time_seconds": float(st.get("total_speech_seconds", 0.0)),
+                "talk_percentage": float(st.get("talk_percentage", 0.0)),
+                "turn_count": int(st.get("turn_count", 0))
             })
     else:
         speakers = meeting_dict.get("speakers", [])
         for idx, spk in enumerate(speakers):
+            display_name = spk if isinstance(spk, str) else str(spk)
+            st = stats_map.get(display_name, {})
             speakers_data.append({
                 "meeting_id": meeting_id,
                 "speaker_id": f"SPEAKER_{idx:02d}",
-                "display_name": spk if isinstance(spk, str) else str(spk),
-                "confidence": 1.0
+                "display_name": display_name,
+                "confidence": 1.0,
+                "talk_time_seconds": float(st.get("total_speech_seconds", 0.0)),
+                "talk_percentage": float(st.get("talk_percentage", 0.0)),
+                "turn_count": int(st.get("turn_count", 0))
             })
 
     if speakers_data:
@@ -144,6 +180,7 @@ def sync_meeting_to_supabase(meeting_dict: Dict[str, Any]) -> bool:
             "assignee": item.get("assignee") or "Unassigned",
             "task": item.get("task", ""),
             "deadline": item.get("deadline") or "",
+            "quote": item.get("quote") or "",
             "status": item.get("status", "pending")
         })
     if actions_data:
@@ -155,7 +192,8 @@ def sync_meeting_to_supabase(meeting_dict: Dict[str, Any]) -> bool:
         decisions_data.append({
             "meeting_id": meeting_id,
             "decision": dec.get("decision", ""),
-            "decided_by": dec.get("speaker_id") or dec.get("decided_by") or ""
+            "decided_by": dec.get("speaker_id") or dec.get("decided_by") or "",
+            "rationale": dec.get("rationale") or ""
         })
     if decisions_data:
         _post_rest("decisions", decisions_data)

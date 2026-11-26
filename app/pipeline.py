@@ -187,7 +187,10 @@ async def run_pipeline(
         try:
             from app import supabase_client
             if supabase_client.is_configured():
-                await supabase_client.sync_meeting(result)
+                import inspect
+                sync_res = supabase_client.sync_meeting(result)
+                if inspect.isawaitable(sync_res):
+                    await sync_res
         except Exception as e:
             print(f"[Supabase Sync Notice] {e}")
 
